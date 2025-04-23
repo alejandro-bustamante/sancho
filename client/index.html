@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Buscador de canciones</title>
+    <link href="css/style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="searchBox">
+      <input
+        type="text"
+        id="track"
+        placeholder="Ingrese la canción que desea buscar"
+      />
+      <button id="searchBtn">Search</button>
+
+      <select id="userSelected">
+        <option value="alejandro">Alejandro</option>
+        <option value="alfredo">Alfredo</option>
+      </select>
+    </div>
+
+    <div id="results"></div>
+
+    <script src="search.js"></script>
+  </body>
+</html>

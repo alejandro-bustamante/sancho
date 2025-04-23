@@ -1,0 +1,132 @@
+.first-color {
+  background: #222831;
+}
+
+.second-color {
+  background: #393e46;
+}
+
+.third-color {
+  background: #f96d00;
+}
+
+.fourth-color {
+  background: #f2f2f2;
+}
+/* Estilos generales */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #393e46;
+  color: #f2f2f2;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  padding-top: 20px;
+}
+
+/* Input y botón */
+input[type="text"] {
+  width: 300px;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+input[type="text"]:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+  outline: none;
+}
+
+button {
+  background-color: #007bff;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+/* Resultados */
+#results {
+  width: 80%;
+  max-width: 800px;
+  margin-top: 20px;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  max-height: 70vh; /* Limita la altura para evitar que se salga de la pantalla */
+}
+
+/* Estilos para cada resultado */
+#results div {
+  margin-bottom: 20px;
+}
+
+#results h3 {
+  margin: 0 0 10px 0;
+  font-size: 20px;
+  color: #007bff;
+}
+
+#results p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: #555;
+}
+
+#results img {
+  max-width: 100px;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+#results audio {
+  width: 100%;
+  margin: 10px 0;
+}
+
+#results button {
+  background-color: #f96d00;
+  color: #fff;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+#results button:hover {
+  background-color: #f96d00;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 20px 0;
+}
+
+.searchBox {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.searchBox > * {
+  margin: 1vw;
+}
