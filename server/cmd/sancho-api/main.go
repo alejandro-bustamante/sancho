@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/alejandro-bustamante/sancho/server/api"
+	"github.com/alejandro-bustamante/sancho/server/internal/controller"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,8 +13,9 @@ func main() {
 	port := "8081"
 
 	router := gin.Default()
+	proxyHandler := controller.NewProxyCORSHandler()
 
-	api.RegisterRoutes(router)
+	api.RegisterRoutes(router, proxyHandler)
 
 	log.Printf("Server running on http://localhost:%s", port)
 	if err := router.Run(":" + port); err != nil {
