@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estado de la descarga</title>
+  <!-- Tailwind CSS -->
+  <script src="./download-status.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Opciones de tema para Tailwind -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'dark': '#222831',
+            'dark-gray': '#393e46',
+            'orange': '#f96d00',
+            'light': '#f2f2f2'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-dark-gray text-light min-h-screen flex flex-col items-center pt-10 px-4">
+  <div x-data="downloadStatusApp()" x-init="initStatusCheck()" class="w-full max-w-lg">
+    <h1 class="text-3xl font-bold text-center mb-6">Estado de la descarga</h1>
+
+    <div class="bg-white text-gray-800 p-6 rounded-lg shadow-lg" :class="{'border-l-4 border-green-500': status === 'Descarga completada',
+              'border-l-4 border-red-500': status === 'Error en la descarga'}">
+      <template x-if="!downloadId">
+        <div class="text-red-600 font-medium">Error: No se proporcionó un ID de descarga</div>
+      </template>
+
+      <template x-if="downloadId">
+        <div>
+          <div class="mb-4">
+            <p class="text-lg">
+              Estado actual: <span x-text="status" :class="{
+                'text-green-600 font-medium': status === 'Descarga completada',
+                'text-red-600 font-medium': status === 'Error en la descarga',
+                'text-blue-600 font-medium': status !== 'Descarga completada' && status !== 'Error en la descarga'
+              }"></span>
+            </p>
+          </div>
+
+          <template x-if="status !== 'Descarga completada' && status !== 'Error en la descarga'">
+            <div class="flex items-center mt-4">
+              <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500 mr-3"></div>
+              <span class="text-sm text-gray-600">Actualizando cada 5 segundos...</span>
+            </div>
+          </template>
+
+          <template x-if="status === 'Descarga completada' || status === 'Error en la descarga'">
+            <div class="mt-4">
+              <a href="/"
+                class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors duration-300">
+                Volver al buscador
+              </a>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </div>
+
+</body>
+
+</html>

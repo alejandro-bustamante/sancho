@@ -5,6 +5,7 @@ import (
 
 	"github.com/alejandro-bustamante/sancho/server/api"
 	"github.com/alejandro-bustamante/sancho/server/internal/controller"
+	"github.com/alejandro-bustamante/sancho/server/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,8 +15,12 @@ func main() {
 
 	router := gin.Default()
 	proxyHandler := controller.NewProxyCORSHandler()
+	streamRipService := service.NewStreamripService()
+	downloadHandler := controller.NewDownloadHandler(streamRipService)
 
-	api.RegisterRoutes(router, proxyHandler)
+	router.Static("/client", "../client")
+
+	api.RegisterRoutes(router, proxyHandler, downloadHandler)
 
 	log.Printf("Server running on http://localhost:%s", port)
 	if err := router.Run(":" + port); err != nil {

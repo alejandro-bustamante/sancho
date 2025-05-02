@@ -8,9 +8,13 @@ import (
 type ProxyHandler interface {
 	ProxyCORSHandler(c *gin.Context)
 }
+type DownloadHandler interface {
+	SingleDownloadHandler(c *gin.Context)
+}
 
-func RegisterRoutes(router *gin.Engine, h ProxyHandler) {
+func RegisterRoutes(router *gin.Engine, p ProxyHandler, d DownloadHandler) {
 	router.Use(util.CORSMiddleware())
 
-	router.GET("/proxy", h.ProxyCORSHandler)
+	router.GET("/proxy", p.ProxyCORSHandler)
+	router.POST("/download", d.SingleDownloadHandler)
 }

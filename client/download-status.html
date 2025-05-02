@@ -1,15 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Estado de la descarga</title>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script> -->
-  </head>
-  <body>
-    <h1>Estado de la descarga</h1>
-    <div id="downloadStatus">Cargando estado...</div>
 
-    <script src="download-status.js"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <title>Estado de la Descarga</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const params = new URLSearchParams(window.location.search);
+            const downloadId = params.get('downloadId');
+
+            if (downloadId) {
+                document.getElementById('status').textContent = `Descarga iniciada. ID: ${downloadId}`;
+            } else {
+                document.getElementById('status').textContent = "No se encontró ID de descarga.";
+            }
+        });
+    </script>
+</head>
+
+<body class="bg-dark-gray text-light min-h-screen flex flex-col items-center pt-5">
+    <h1 id="status" class="text-2xl mt-8">Cargando estado...</h1>
+</body>
+
 </html>
