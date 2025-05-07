@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/alejandro-bustamante/sancho/server/api"
-	"github.com/alejandro-bustamante/sancho/server/internal/controller"
+	"github.com/alejandro-bustamante/sancho/server/internal/api"
+	"github.com/alejandro-bustamante/sancho/server/internal/api/controller"
 	"github.com/alejandro-bustamante/sancho/server/internal/service"
 	"github.com/gin-gonic/gin"
 )
