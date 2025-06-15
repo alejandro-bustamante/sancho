@@ -9,10 +9,10 @@ import (
 )
 
 type DownloadHandlerProd struct {
-	streamripService service.StreamripService
+	streamripService service.Streamrip
 }
 
-func NewDownloadHandler(s service.StreamripService) *DownloadHandlerProd {
+func NewDownloadHandler(s service.Streamrip) *DownloadHandlerProd {
 	return &DownloadHandlerProd{
 		streamripService: s,
 	}
@@ -32,27 +32,27 @@ func (h *DownloadHandlerProd) SingleDownloadHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
 		return
 	}
-	
+
 	log.Printf("Iniciando descarga para URL: %s, Título: %s, Artista: %s", req.URL, req.Title, req.Artist)
-	
+
 	downloadID, err := h.streamripService.DownloadTrack(req.URL, req.Title, req.Artist, req.Album, req.User)
 	if err != nil {
 		log.Printf("Error al iniciar descarga: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start download", "details": err.Error()})
 		return
 	}
-	
+
 	log.Printf("Descarga iniciada con ID: %s", downloadID)
-	
+
 	// Responder con JSON para proporcionar más información
 	c.JSON(http.StatusOK, gin.H{
 		"downloadId": downloadID,
-		"status": "downloading",
-		"message": "Descarga iniciada correctamente",
+		"status":     "downloading",
+		"message":    "Descarga iniciada correctamente",
 		"trackInfo": gin.H{
-			"title": req.Title,
+			"title":  req.Title,
 			"artist": req.Artist,
-			"album": req.Album,
+			"album":  req.Album,
 		},
 	})
 }

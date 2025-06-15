@@ -5,8 +5,8 @@ sql:
     schema: "migrations"
     gen:
       go:
-        package: "db"
-        out: "internal/common/db"
+        package: "repository"
+        out: "internal/repository"
         emit_json_tags: true
         emit_prepared_queries: true
         emit_interface: true
@@ -17,6 +17,8 @@ sql:
         #     go_type:
         #       import: "time"
         #       type: "Time"
+        #     nullable: false
+
         #     nullable: false
         #   - db_type: "text"
         #     go_type:

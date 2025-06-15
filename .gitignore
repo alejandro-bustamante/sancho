@@ -1,5 +1,6 @@
 bin
 go.mod
 go.sum
+server/database/dev.*
 
 .env
