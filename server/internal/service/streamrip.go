@@ -8,10 +8,6 @@ import (
 	"time"
 )
 
-type Streamrip interface {
-	DownloadTrack(url, title, artist, album, user string) (string, error)
-}
-
 type StreamripProd struct{}
 
 func NewStreamripService() *StreamripProd {

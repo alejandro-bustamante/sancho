@@ -9,22 +9,23 @@ type ProxyHandler interface {
 	ProxyCORSHandler(c *gin.Context)
 }
 type DownloadHandler interface {
-	SingleDownloadHandler(c *gin.Context)
+	DownloadSingleTrack(c *gin.Context)
 	// add more functions from the handler (download.go) when needed
 }
-type IndexHandler interface {
+type LibraryHandler interface {
 	IndexFolder(c *gin.Context)
 	GetTracks(c *gin.Context)
 	SearchTracks(c *gin.Context)
 }
 
-func RegisterRoutes(router *gin.Engine, p ProxyHandler, d DownloadHandler, i IndexHandler) {
+func RegisterRoutes(router *gin.Engine, p ProxyHandler, d DownloadHandler, l LibraryHandler) {
 	router.Use(mdw.CORSMiddleware())
 
 	router.GET("/proxy", p.ProxyCORSHandler)
-	router.POST("/download", d.SingleDownloadHandler)
-	router.POST("/index", i.IndexFolder)
-	router.GET("/tracks", i.GetTracks)
+	router.POST("/download", d.DownloadSingleTrack)
+	router.POST("/index", l.IndexFolder)
 
-	router.GET("/tracks/search", i.SearchTracks)
+	router.GET("/tracks", l.GetTracks)
+
+	router.GET("/tracks/search", l.SearchTracks)
 }

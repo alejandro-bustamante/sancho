@@ -4,15 +4,18 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/alejandro-bustamante/sancho/server/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
-type DownloadHandlerProd struct {
-	streamripService service.Streamrip
+type Streamrip interface {
+	DownloadTrack(url, title, artist, album, user string) (string, error)
 }
 
-func NewDownloadHandler(s service.Streamrip) *DownloadHandlerProd {
+type DownloadHandlerProd struct {
+	streamripService Streamrip
+}
+
+func NewDownloadHandler(s Streamrip) *DownloadHandlerProd {
 	return &DownloadHandlerProd{
 		streamripService: s,
 	}
@@ -26,7 +29,7 @@ type DownloadRequest struct {
 	User   string `json:"user" binding:"required"`
 }
 
-func (h *DownloadHandlerProd) SingleDownloadHandler(c *gin.Context) {
+func (h *DownloadHandlerProd) DownloadSingleTrack(c *gin.Context) {
 	var req DownloadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})

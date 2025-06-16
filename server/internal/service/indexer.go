@@ -11,40 +11,43 @@ import (
 
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 	_ "github.com/mattn/go-sqlite3"
-
 	tag "go.senan.xyz/taglib"
 )
 
-func IndexFolder(ctx context.Context, dbPath string, rootDir string) error {
-	conn, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return fmt.Errorf("error abriendo base de datos: %w", err)
-	}
-	defer conn.Close()
+// IndexerProd ahora tiene una dependencia de la base de datos (queries).
+type IndexerProd struct {
+	queries *db.Queries
+}
 
-	queries, err := db.Prepare(ctx, conn)
-	if err != nil {
-		return fmt.Errorf("error preparando queries: %w", err)
+// El constructor ahora requiere que se le pasen las queries.
+func NewIndexerService(queries *db.Queries) *IndexerProd {
+	return &IndexerProd{
+		queries: queries,
 	}
-	defer queries.Close()
+}
 
+// IndexFolder ya no necesita el 'dbPath', usa las queries internas.
+func (x *IndexerProd) IndexFolder(ctx context.Context, rootDir string) error {
+	// ¡La lógica de conexión a la BD ha sido eliminada!
+	// Ahora el servicio es más limpio y se enfoca solo en su tarea.
 	return filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !isAudioFile(path) {
+		if err != nil || info.IsDir() || !x.isAudioFile(path) {
 			return nil
 		}
-		if err := indexFile(ctx, path, info, queries); err != nil {
+		// Se pasan las queries que ya tiene el struct.
+		if err := x.indexFile(ctx, path, info, x.queries); err != nil {
 			log.Printf("Error procesando %s: %v", path, err)
 		}
 		return nil
 	})
 }
 
-func indexFile(ctx context.Context, path string, info os.FileInfo, queries *db.Queries) error {
+// indexFile no cambia, pero es llamado por un IndexFolder refactorizado.
+func (x *IndexerProd) indexFile(ctx context.Context, path string, info os.FileInfo, queries *db.Queries) error {
 	tags, err := tag.ReadTags(path)
 	if err != nil {
 		return fmt.Errorf("error leyendo tags: %w", err)
 	}
-
 	get := func(key string) string {
 		vals, ok := tags[key]
 		if !ok || len(vals) == 0 {
@@ -52,20 +55,17 @@ func indexFile(ctx context.Context, path string, info os.FileInfo, queries *db.Q
 		}
 		return vals[0]
 	}
-
 	title := get(tag.Title)
 	if title == "" {
 		title = filepath.Base(path)
 	}
-	trackNum := parseInt(get(tag.TrackNumber))
-	discNum := parseInt(get(tag.DiscNumber))
-	duration := parseInt(get(tag.Length))
-
+	trackNum := x.parseInt(get(tag.TrackNumber))
+	discNum := x.parseInt(get(tag.DiscNumber))
+	duration := x.parseInt(get(tag.Length))
 	properties, err := tag.ReadProperties(path)
 	if err != nil {
 		return fmt.Errorf("error leyendo propiedades del archivo: %w", err)
 	}
-
 	params := db.InsertTrackParams{
 		Title:       title,
 		FilePath:    path,
@@ -82,24 +82,21 @@ func indexFile(ctx context.Context, path string, info os.FileInfo, queries *db.Q
 		AlbumID:     sql.NullInt64{},
 		Isrc:        sql.NullString{String: get(tag.ISRC), Valid: get(tag.ISRC) != ""},
 	}
-
 	track, err := queries.InsertTrack(ctx, params)
 	if err != nil {
 		return fmt.Errorf("error insertando track: %w", err)
 	}
-
 	fmt.Printf("✓ %s (%s)\n", track.Title, track.FilePath)
 	return nil
 }
 
-func parseInt(s string) int64 {
+func (x *IndexerProd) parseInt(s string) int64 {
 	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
 		return i
 	}
 	return 0
 }
-
-func isAudioFile(path string) bool {
+func (x *IndexerProd) isAudioFile(path string) bool {
 	ext := filepath.Ext(path)
 	switch ext {
 	case ".mp3", ".flac", ".ogg", ".m4a", ".wav", ".aiff", ".alac":
