@@ -116,3 +116,27 @@ func UserTrackFromDB(ut db.UserTrack) UserTrack {
 		DownloadDate: ut.DownloadDate.Format(time.RFC3339),
 	}
 }
+
+func MapToTrackPreviews(results []StreamripSearchResult) []TrackPreview {
+	previews := make([]TrackPreview, 0, len(results))
+	for _, r := range results {
+		preview := TrackPreview{
+			Title:    r.Data.Title,
+			Artist:   r.Data.Performer.Name,
+			Duration: r.Data.Duration,
+			Image:    r.Data.Album.Image.Small,
+			TrackID:  r.ID,
+			Source:   r.Source,
+			ISRC:     r.Data.ISRC,
+		}
+		previews = append(previews, preview)
+	}
+	return previews
+}
+
+func LimitResults[T any](items []T, max int) []T {
+	if len(items) > max {
+		return items[:max]
+	}
+	return items
+}

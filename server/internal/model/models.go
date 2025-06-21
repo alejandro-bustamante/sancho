@@ -68,3 +68,37 @@ type UserTrack struct {
 	SymlinkPath  string `json:"symlink_path"`
 	DownloadDate string `json:"download_date"`
 }
+
+type StreamripSearchResult struct {
+	Source    string `json:"source"`
+	MediaType string `json:"media_type"`
+	ID        string `json:"id"`
+	Desc      string `json:"desc"`
+	Data      struct {
+		Title     string `json:"title"`
+		Duration  int    `json:"duration"`
+		Performer struct {
+			Name string `json:"name"`
+			ID   int    `json:"id"`
+		} `json:"performer"`
+		Album struct {
+			Title string `json:"title"`
+			Image struct {
+				Small     string `json:"small"`
+				Thumbnail string `json:"thumbnail"`
+				Large     string `json:"large"`
+			} `json:"image"`
+		} `json:"album"`
+		ISRC string `json:"isrc"`
+	} `json:"data"`
+}
+
+type TrackPreview struct {
+	Title    string `json:"title"`
+	Artist   string `json:"artist"`
+	Duration int    `json:"duration"`
+	Image    string `json:"image"`
+	TrackID  string `json:"track_id"`
+	Source   string `json:"source"`
+	ISRC     string `json:"isrc"`
+}

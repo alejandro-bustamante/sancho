@@ -62,7 +62,7 @@ func (h *LibraryHandler) GetTracks(c *gin.Context) {
 	c.JSON(http.StatusOK, tracks)
 }
 
-func (h *LibraryHandler) SearchTracks(c *gin.Context) {
+func (h *LibraryHandler) FindTrackInLibrary(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "The parameter 'q' was missing"})

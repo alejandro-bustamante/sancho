@@ -10,22 +10,25 @@ type ProxyHandler interface {
 }
 type DownloadHandler interface {
 	DownloadSingleTrack(c *gin.Context)
-	// add more functions from the handler (download.go) when needed
+	SearchTracksByTitle(c *gin.Context)
 }
 type LibraryHandler interface {
 	IndexFolder(c *gin.Context)
 	GetTracks(c *gin.Context)
-	SearchTracks(c *gin.Context)
+	FindTrackInLibrary(c *gin.Context)
 }
 
 func RegisterRoutes(router *gin.Engine, p ProxyHandler, d DownloadHandler, l LibraryHandler) {
+	// Cors middleware
 	router.Use(mdw.CORSMiddleware())
-
 	router.GET("/proxy", p.ProxyCORSHandler)
+
+	// Download enpoints (works with streamrip)
 	router.POST("/download", d.DownloadSingleTrack)
+	router.POST("/search", d.SearchTracksByTitle)
+
+	// Library endpoints (works with internal db)
 	router.POST("/index", l.IndexFolder)
-
 	router.GET("/tracks", l.GetTracks)
-
-	router.GET("/tracks/search", l.SearchTracks)
+	router.GET("/tracks/search", l.FindTrackInLibrary)
 }
