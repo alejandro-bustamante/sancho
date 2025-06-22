@@ -1,84 +1,123 @@
-document.getElementById('searchBtn').addEventListener('click', function () {
-  const track = document.getElementById('track').value;
+function searchApp() {
+  return {
+    trackQuery: "",
+    tracks: [],
+    isLoading: false,
+    selectedUser: "alejandro",
+    notifications: [],
 
-  // const proxyUrl = 'http://192.168.0.28:8081/proxy';
-  // using localhost to avoid ip changes
-  const proxyUrl = 'http://localhost:8081/proxy';
-  const apiUrl = `https://api.deezer.com/search?q=${track}`;
-  const url = `${proxyUrl}?url=${encodeURIComponent(apiUrl)}`;
+    searchTracks() {
+      const query = this.trackQuery.trim();
+      if (!query) return;
+      this.isLoading = true;
+      this.tracks = [];
+      const proxyUrl = "http://localhost:8081/proxy";
+      const apiUrl = `https://api.deezer.com/search?q=${encodeURIComponent(
+        query
+      )}`;
+      const url = `${proxyUrl}?url=${encodeURIComponent(apiUrl)}`;
+      fetch(url)
+        .then((response) => response.json())
+        .then((data) => {
+          this.tracks = data.data;
+          this.isLoading = false;
+        })
+        .catch((error) => {
+          console.error("Error: ", error);
+          this.isLoading = false;
+          this.showNotification("Error al buscar canciones", "error");
+        });
+    },
 
-  fetch(url)
-    .then(response => response.json())
-    .then(data => { displayResults(data); })
-    .catch(error => console.error('Error: ', error));
-});
+    downloadTrack(track) {
+      // Mostrar notificación de "iniciando descarga"
+      this.showNotification(
+        `Iniciando descarga: ${track.title}...`,
+        "info",
+        "starting_" + track.id
+      );
 
-
-function displayResults(data) {
-  const resultsDiv = document.getElementById('results');
-  resultsDiv.innerHTML = '';
-
-  data.data.forEach(track => {
-    const trackInfo = document.createElement('div');
-    const downloadBtnId = "downloadBtn" + track.id;
-    trackInfo.innerHTML = `
-      <h3>${track.title}</h3>
-      <p>Link: ${track.link}</p>
-      <p>Artist: ${track.artist.name}</p>
-      <p>Album: ${track.album.title}</p>
-      <img src="${track.album.cover_small}" alt="${track.album.title}">
-      <audio controls>
-          <source src="${track.preview}" type="audio/mpeg">
-          Your browser does not support the audio element.
-      </audio>
-      <button id="${downloadBtnId}">Download</button>
-      <hr>
-    `;
-    resultsDiv.appendChild(trackInfo);
-    loadDownloadFuncionality(track);
-  });
-}
-
-function loadDetailsFuncionality(track) {
-  const detailsButton = "detailsBtn" + track.id;
-
-}
-
-function loadDownloadFuncionality(track) {
-  const downloadBtnId = "downloadBtn" + track.id;
-  let userSelected = document.getElementById('userSelected');
-  console.log(userSelected.value);
-  document.getElementById(downloadBtnId).addEventListener('click', function () {
-    // fetch('http://192.168.0.28:8081/download', {
-    fetch('http://localhost:8081/download', {
-      method: "POST",
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        url: track.link,
-        title: track.title,
-        artist: track.artist.name,
-        album: track.album.title,
-        user: userSelected.value,
+      fetch("http://localhost:8081/download", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: track.link,
+          title: track.title,
+          artist: track.artist.name,
+          album: track.album.title,
+          user: this.selectedUser,
+        }),
       })
-    })
-      .then(response => response.text())
-      .then(downloadId => {
-        // Redirect to the status page with the download ID
-        window.location.href = `/download-status.html?downloadId=${encodeURIComponent(downloadId)}`;
-      })
-      .catch(error => {
-        console.error("Error calling download in the backend", error);
-        alert("Error al iniciar la descarga");
-      });
-    console.log("Sending data:", {
-      url: track.link,
-      title: track.title,
-      artist: track.artist.name,
-      album: track.album.title,
-      user: userSelected.value,
-    });
-  });
-}
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Error en la respuesta: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          // Ocultar notificación de "iniciando"
+          this.hideNotification("starting_" + track.id);
 
+          // Mostrar notificación de éxito con la información detallada
+          this.showNotification(
+            `Descarga iniciada: ${data.trackInfo.title} - ${data.trackInfo.artist}`,
+            "success",
+            data.downloadId
+          );
+
+          console.log("Descarga iniciada:", data);
+        })
+        .catch((error) => {
+          // Ocultar notificación de "iniciando"
+          this.hideNotification("starting_" + track.id);
+
+          console.error("Error calling download in the backend", error);
+          this.showNotification(
+            "Error al iniciar la descarga: " + error.message,
+            "error"
+          );
+        });
+    },
+
+    // Notification system
+    showNotification(message, type = "info", id = null) {
+      const notificationId = id || Date.now().toString();
+
+      // Comprobar si ya existe una notificación con este ID
+      const existingIndex = this.notifications.findIndex(
+        (n) => n.id === notificationId
+      );
+      if (existingIndex !== -1) {
+        // Actualizar la notificación existente
+        this.notifications[existingIndex].message = message;
+        this.notifications[existingIndex].type = type;
+        return;
+      }
+
+      const notification = {
+        id: notificationId,
+        message,
+        type,
+        show: true,
+      };
+
+      this.notifications.push(notification);
+
+      // Auto-hide after 5 seconds for success and error messages
+      if (type !== "info") {
+        setTimeout(() => {
+          this.hideNotification(notification.id);
+        }, 5000);
+      }
+    },
+
+    hideNotification(id) {
+      const index = this.notifications.findIndex((n) => n.id === id);
+      if (index !== -1) {
+        this.notifications.splice(index, 1);
+      }
+    },
+  };
+}

@@ -3,6 +3,7 @@
 Este documento resume la arquitectura utilizada en el backend del proyecto que envuelve `streamrip` con una API REST amigable para el usuario, utilizando Go como lenguaje principal, SQLite como base de datos (con soporte ICU), `taglib` para manejo de metadatos y `gin` como router http.
 
 ## ✨ Objetivo
+
 Proveer una estructura modular, escalable y mantenible, basada en un patrón **MVC extendido** (con servicios y repositorios), orientada a una API REST.
 
 ---
@@ -35,34 +36,38 @@ Proveer una estructura modular, escalable y mantenible, basada en un patrón **M
 
 Basado en **MVC extendido**:
 
-| Capa           | Descripción                                                                 |
-|----------------|-------------------------------------------------------------------------------|
-| Model          | Estructuras de datos puras (`model/Song.go`, `User.go`)                      |
-| Controller     | Recibe peticiones HTTP, llama a servicios, devuelve respuesta (vista)        |
-| View (implícita) | La "vista" es el `c.JSON(...)` o `c.String(...)` devuelto al cliente              |
-| Service        | Lógica de negocio, orquestación, validaciones, llamadas a wrappers externos   |
-| Repository     | Acceso a base de datos (con interfaces y backends concretos como SQLite)     |
+| Capa             | Descripción                                                                 |
+| ---------------- | --------------------------------------------------------------------------- |
+| Model            | Estructuras de datos puras (`model/Song.go`, `User.go`)                     |
+| Controller       | Recibe peticiones HTTP, llama a servicios, devuelve respuesta (vista)       |
+| View (implícita) | La "vista" es el `c.JSON(...)` o `c.String(...)` devuelto al cliente        |
+| Service          | Lógica de negocio, orquestación, validaciones, llamadas a wrappers externos |
+| Repository       | Acceso a base de datos (con interfaces y backends concretos como SQLite)    |
 
 ---
 
 ## 💡 Roles de Carpetas Clave
 
 ### `/cmd/server/main.go`
+
 - Punto de entrada.
 - Inicializa la app, inyecta dependencias, arranca el router.
 - Conviene mantenerlo dentro de `cmd/` por si se agregan otras apps (CLI, workers, etc.).
 
 ### `/api/routes.go`
+
 - Centraliza el registro de rutas.
 - Separa la definición de rutas de la lógica del controlador.
 - Facilita la lectura y el versionado (ej. `/api/v1/...`).
 
 ### `/controller/`
+
 - Define handlers HTTP.
 - No contiene lógica de negocio ni acceso a datos.
 - Devuelve respuestas JSON (actúa como "vista").
 
 ### `/service/`
+
 - Encapsula la lógica de negocio.
 - Usa los repositorios y wrappers.
 - Ejemplos:
@@ -70,10 +75,12 @@ Basado en **MVC extendido**:
   - `StreamripClient` es una interfaz para comunicar con el wrapper en Python.
 
 ### `/repository/`
+
 - Define interfaces para acceso a datos.
 - Implementaciones concretas, como `sqlite`, van en subcarpetas.
 
 ### `/model/`
+
 - Estructuras de datos (entities, DTOs).
 - No contiene lógica.
 
@@ -84,6 +91,7 @@ Basado en **MVC extendido**:
 El proyecto favorece la inyección de dependencias manual:
 
 ### ✅ Ejemplo
+
 ```go
 func main() {
     db := sqlite.NewConnection()
@@ -98,6 +106,7 @@ func main() {
 ```
 
 Esto:
+
 - Permite mocks en tests.
 - Desacopla implementaciones concretas.
 
@@ -153,3 +162,86 @@ service/song_service.go → decide si hay que descargar o no
 - Acoplar la implementación concreta (ej. SQLite) al servicio.
 
 ---
+
+Database schema:
+-- Tabla de usuario
+CREATE TABLE user (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+username TEXT NOT NULL UNIQUE,
+password_hash TEXT NOT NULL,
+email TEXT UNIQUE,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+last_login TIMESTAMP,
+is_active BOOLEAN DEFAULT TRUE
+);
+-- Tabla de artista
+CREATE TABLE artist (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+name TEXT NOT NULL,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- Tabla de álbum
+CREATE TABLE album (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+title TEXT NOT NULL,
+artist_id INTEGER,
+release_date TEXT,
+album_art_path TEXT,
+genre TEXT,
+year INTEGER,
+total_tracks INTEGER,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (artist_id) REFERENCES artist(id)
+);
+-- Tabla de track (canción)
+CREATE TABLE track (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+title TEXT NOT NULL,
+artist_id INTEGER,
+album_id INTEGER,
+duration INTEGER, -- en segundos
+track_number INTEGER,
+disc_number INTEGER DEFAULT 1,
+sample_rate INTEGER,
+bit_depth INTEGER,
+bitrate INTEGER,
+channels INTEGER,
+codec TEXT,
+file_path TEXT NOT NULL, -- ruta en la carpeta principal
+file_size INTEGER,
+isrc TEXT, -- Código ISRC para identificación
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (artist_id) REFERENCES artist(id),
+FOREIGN KEY (album_id) REFERENCES album(id)
+);
+-- Tabla para manejar la relación entre usuarios y tracks (descargas y symlinks)
+CREATE TABLE user_track (
+user_id INTEGER,
+track_id INTEGER,
+symlink_path TEXT NOT NULL, -- ruta del symlink en la carpeta del usuario
+download_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (user_id) REFERENCES user(id),
+FOREIGN KEY (track_id) REFERENCES track(id),
+PRIMARY KEY (user_id, track_id)
+);
+-- Tabla para el historial de descargas
+CREATE TABLE download_history (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+user_id INTEGER,
+track_id INTEGER,
+quality INTEGER CHECK(quality IN (0, 1, 2, 3)), -- calidad de la descarga (0-3)
+status TEXT CHECK(status IN ('success', 'failed', 'pending')),
+service TEXT, -- qobuz, tidal, etc.
+started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+completed_at TIMESTAMP,
+error_message TEXT,
+FOREIGN KEY (user_id) REFERENCES user(id),
+FOREIGN KEY (track_id) REFERENCES track(id)
+);
+-- Índices para optimizar consultas comunes
+CREATE INDEX idx_track_title ON track(title);
+CREATE INDEX idx_album_title ON album(title);
+CREATE INDEX idx_artist_name ON artist(name);
+CREATE INDEX idx_user_track_user_id ON user_track(user_id);
+CREATE INDEX idx_track_isrc ON track(isrc);
