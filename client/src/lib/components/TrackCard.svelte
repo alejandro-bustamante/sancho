@@ -19,7 +19,7 @@
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					url: track.link,
+					// url: track.link,
 					title: track.title,
 					artist: track.artist.name,
 					album: track.album.title,
@@ -56,7 +56,7 @@
 
 <div class="mb-6 pb-6 border-b border-gray-200">
 	<h3 class="text-xl font-semibold text-blue-600 mb-2">{track.title}</h3>
-	<p class="text-sm text-gray-600">Link: {track.link}</p>
+	<!-- <p class="text-sm text-gray-600">Link: {track.link}</p> -->
 	<p class="text-sm text-gray-600">Artist: {track.artist.name}</p>
 	<p class="text-sm text-gray-600">Album: {track.album.title}</p>
 	<div class="flex flex-wrap items-center mt-3">

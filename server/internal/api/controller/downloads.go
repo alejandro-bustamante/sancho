@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/alejandro-bustamante/sancho/server/internal/model"
 	"github.com/gin-gonic/gin"
@@ -83,4 +85,38 @@ func (h *DownloadHandlerProd) SearchTracksByTitle(c *gin.Context) {
 		"results": preview,
 	})
 
+}
+
+func (h *DownloadHandlerProd) SearchTracksDeezer(c *gin.Context) {
+	var req SearchTrackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+		return
+	}
+
+	query := url.QueryEscape(req.Title)
+	deezerURL := "https://api.deezer.com/search?q=" + query
+
+	resp, err := http.Get(deezerURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch from Deezer", "details": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Deezer API returned non-200", "status": resp.Status})
+		return
+	}
+
+	var deezerResp model.DeezerSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&deezerResp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse Deezer response", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Resultados de Deezer",
+		"results": deezerResp.Data,
+	})
 }

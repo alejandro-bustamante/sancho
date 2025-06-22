@@ -11,6 +11,7 @@ type ProxyHandler interface {
 type DownloadHandler interface {
 	DownloadSingleTrack(c *gin.Context)
 	SearchTracksByTitle(c *gin.Context)
+	SearchTracksDeezer(c *gin.Context)
 }
 type LibraryHandler interface {
 	IndexFolder(c *gin.Context)
@@ -26,9 +27,11 @@ func RegisterRoutes(router *gin.Engine, p ProxyHandler, d DownloadHandler, l Lib
 	// Download enpoints (works with streamrip)
 	router.POST("/download", d.DownloadSingleTrack)
 	router.POST("/search", d.SearchTracksByTitle)
+	router.POST("/search/deezer", d.SearchTracksDeezer)
 
 	// Library endpoints (works with internal db)
 	router.POST("/index", l.IndexFolder)
 	router.GET("/tracks", l.GetTracks)
 	router.GET("/tracks/search", l.FindTrackInLibrary)
+
 }

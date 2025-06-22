@@ -102,3 +102,23 @@ type TrackPreview struct {
 	Source   string `json:"source"`
 	ISRC     string `json:"isrc"`
 }
+
+type DeezerSearchResult struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	// Link   string `json:"link"`
+	Artist struct {
+		Name string `json:"name"`
+	} `json:"artist"`
+	Duration int `json:"duration"`
+	Album    struct {
+		Title       string `json:"title"`
+		CoverSmall  string `json:"cover_small"`
+		CoverMedium string `json:"cover_medium"`
+	} `json:"album"`
+	Image string `json:"image"`
+}
+
+type DeezerSearchResponse struct {
+	Data []DeezerSearchResult `json:"data"`
+}
