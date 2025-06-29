@@ -11,26 +11,27 @@ import (
 
 type Album struct {
 	ID              int64          `json:"id"`
+	DeezerID        sql.NullString `json:"deezer_id"`
 	Title           string         `json:"title"`
 	NormalizedTitle string         `json:"normalized_title"`
-	ArtistID        sql.NullInt64  `json:"artist_id"`
+	ArtistID        int64          `json:"artist_id"`
 	ReleaseDate     sql.NullString `json:"release_date"`
 	AlbumArtPath    sql.NullString `json:"album_art_path"`
 	Genre           sql.NullString `json:"genre"`
-	Year            sql.NullInt64  `json:"year"`
 	TotalTracks     sql.NullInt64  `json:"total_tracks"`
 	CreatedAt       time.Time      `json:"created_at"`
 }
 
 type Artist struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	NormalizedName string    `json:"normalized_name"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID             int64          `json:"id"`
+	DeezerID       sql.NullString `json:"deezer_id"`
+	Name           string         `json:"name"`
+	NormalizedName string         `json:"normalized_name"`
+	CreatedAt      time.Time      `json:"created_at"`
 }
 
 type DownloadHistory struct {
-	ID           int64          `json:"id"`
+	ID           string         `json:"id"`
 	UserID       sql.NullInt64  `json:"user_id"`
 	TrackID      sql.NullInt64  `json:"track_id"`
 	Quality      sql.NullInt64  `json:"quality"`
@@ -51,13 +52,12 @@ type Track struct {
 	TrackNumber     sql.NullInt64  `json:"track_number"`
 	DiscNumber      sql.NullInt64  `json:"disc_number"`
 	SampleRate      sql.NullInt64  `json:"sample_rate"`
-	BitDepth        sql.NullInt64  `json:"bit_depth"`
 	Bitrate         sql.NullInt64  `json:"bitrate"`
 	Channels        sql.NullInt64  `json:"channels"`
-	Codec           sql.NullString `json:"codec"`
 	FilePath        string         `json:"file_path"`
 	FileSize        sql.NullInt64  `json:"file_size"`
 	Isrc            sql.NullString `json:"isrc"`
+	Composer        sql.NullString `json:"composer"`
 	CreatedAt       time.Time      `json:"created_at"`
 }
 

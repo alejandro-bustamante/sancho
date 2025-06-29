@@ -10,9 +10,24 @@ import (
 )
 
 type Querier interface {
+	AddTrackToUser(ctx context.Context, arg AddTrackToUserParams) error
+	AlbumExistsByDeezerID(ctx context.Context, deezerID sql.NullString) (int64, error)
+	ArtistExistsByDeezerID(ctx context.Context, deezerID sql.NullString) (int64, error)
+	GetAlbumByDeezerID(ctx context.Context, deezerID sql.NullString) (Album, error)
+	GetAlbumByNormalizedTitleAndArtist(ctx context.Context, arg GetAlbumByNormalizedTitleAndArtistParams) (Album, error)
+	GetArtistByDeezerID(ctx context.Context, deezerID sql.NullString) (Artist, error)
+	GetArtistByNormalizedName(ctx context.Context, normalizedName string) (Artist, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
+	GetUserTrack(ctx context.Context, arg GetUserTrackParams) (UserTrack, error)
+	InsertAlbum(ctx context.Context, arg InsertAlbumParams) (Album, error)
+	InsertArtist(ctx context.Context, arg InsertArtistParams) (Artist, error)
+	InsertDownloadHistory(ctx context.Context, arg InsertDownloadHistoryParams) (DownloadHistory, error)
 	InsertTrack(ctx context.Context, arg InsertTrackParams) (Track, error)
+	InsertUser(ctx context.Context, arg InsertUserParams) (User, error)
 	ListTracksByDate(ctx context.Context) ([]Track, error)
 	SearchTracksByTitle(ctx context.Context, title sql.NullString) ([]Track, error)
+	UpdateDownloadCompletion(ctx context.Context, arg UpdateDownloadCompletionParams) error
+	UpdateLastLogin(ctx context.Context, id int64) error
 }
 
 var _ Querier = (*Queries)(nil)

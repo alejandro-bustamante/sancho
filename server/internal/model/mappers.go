@@ -39,13 +39,13 @@ func toBoolPtr(n sql.NullBool) *bool {
 func AlbumFromDB(a db.Album) Album {
 	return Album{
 		ID:              a.ID,
+		DeezerID:        toStringPtr(a.DeezerID),
 		Title:           a.Title,
 		NormalizedTitle: a.NormalizedTitle,
-		ArtistID:        toInt64Ptr(a.ArtistID),
+		ArtistID:        a.ArtistID,
 		ReleaseDate:     toStringPtr(a.ReleaseDate),
 		AlbumArtPath:    toStringPtr(a.AlbumArtPath),
 		Genre:           toStringPtr(a.Genre),
-		Year:            toInt64Ptr(a.Year),
 		TotalTracks:     toInt64Ptr(a.TotalTracks),
 		CreatedAt:       a.CreatedAt.Format(time.RFC3339),
 	}
@@ -54,6 +54,7 @@ func AlbumFromDB(a db.Album) Album {
 func ArtistFromDB(a db.Artist) Artist {
 	return Artist{
 		ID:             a.ID,
+		DeezerID:       toStringPtr(a.DeezerID),
 		Name:           a.Name,
 		NormalizedName: a.NormalizedName,
 		CreatedAt:      a.CreatedAt.Format(time.RFC3339),
@@ -85,10 +86,8 @@ func TrackFromDB(t db.Track) Track {
 		TrackNumber:     toInt64Ptr(t.TrackNumber),
 		DiscNumber:      toInt64Ptr(t.DiscNumber),
 		SampleRate:      toInt64Ptr(t.SampleRate),
-		BitDepth:        toInt64Ptr(t.BitDepth),
 		Bitrate:         toInt64Ptr(t.Bitrate),
 		Channels:        toInt64Ptr(t.Channels),
-		Codec:           toStringPtr(t.Codec),
 		FilePath:        t.FilePath,
 		FileSize:        toInt64Ptr(t.FileSize),
 		ISRC:            toStringPtr(t.Isrc),

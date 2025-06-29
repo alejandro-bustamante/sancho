@@ -7,13 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ProxyHandlerProd struct{}
+type ProxyHandler struct{}
 
-func NewProxyCORSHandler() *ProxyHandlerProd {
-	return &ProxyHandlerProd{}
+func NewProxyCORSHandler() *ProxyHandler {
+	return &ProxyHandler{}
 }
 
-func (h *ProxyHandlerProd) ProxyCORSHandler(c *gin.Context) {
+func (h *ProxyHandler) ProxyCORSHandler(c *gin.Context) {
 	targetURL := c.Query("url")
 	if targetURL == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing 'url' query parameter"})

@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"database/sql"
 	"log"
 	"net/http"
@@ -10,13 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Indexer interface {
-	IndexFolder(ctx context.Context, rootDir string) error
-}
-
 // The structure of the request the client has to pass us
 type LibraryIndexRequest struct {
 	Path string `json:"path" binding:"required"`
+	User string `json:"user" binding:"required"`
 }
 
 type LibraryHandler struct {
@@ -40,7 +36,7 @@ func (h *LibraryHandler) IndexFolder(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	go func() {
-		if err := h.indexerService.IndexFolder(ctx, req.Path); err != nil {
+		if err := h.indexerService.IndexFolder(ctx, req.Path, req.User); err != nil {
 			log.Printf("Error indexing the folder. Error: %v", err)
 		} else {
 			log.Printf("Indexing completed for: %s", req.Path)
