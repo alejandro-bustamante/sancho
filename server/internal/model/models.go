@@ -2,26 +2,27 @@ package model
 
 type Album struct {
 	ID              int64   `json:"id"`
+	DeezerID        *string `json:"deezer_id"`
 	Title           string  `json:"title"`
 	NormalizedTitle string  `json:"normalized_title"`
-	ArtistID        *int64  `json:"artist_id,omitempty"`
+	ArtistID        int64   `json:"artist_id,omitempty"`
 	ReleaseDate     *string `json:"release_date,omitempty"`
 	AlbumArtPath    *string `json:"album_art_path,omitempty"`
 	Genre           *string `json:"genre,omitempty"`
-	Year            *int64  `json:"year,omitempty"`
 	TotalTracks     *int64  `json:"total_tracks,omitempty"`
 	CreatedAt       string  `json:"created_at"`
 }
 
 type Artist struct {
-	ID             int64  `json:"id"`
-	Name           string `json:"name"`
-	NormalizedName string `json:"normalized_name"`
-	CreatedAt      string `json:"created_at"`
+	ID             int64   `json:"id"`
+	DeezerID       *string `json:"deezer_id"`
+	Name           string  `json:"name"`
+	NormalizedName string  `json:"normalized_name"`
+	CreatedAt      string  `json:"created_at"`
 }
 
 type DownloadHistory struct {
-	ID           int64   `json:"id"`
+	ID           string  `json:"id"`
 	UserID       *int64  `json:"user_id,omitempty"`
 	TrackID      *int64  `json:"track_id,omitempty"`
 	Quality      *int64  `json:"quality,omitempty"`
@@ -42,10 +43,8 @@ type Track struct {
 	TrackNumber     *int64  `json:"track_number,omitempty"`
 	DiscNumber      *int64  `json:"disc_number,omitempty"`
 	SampleRate      *int64  `json:"sample_rate,omitempty"`
-	BitDepth        *int64  `json:"bit_depth,omitempty"`
 	Bitrate         *int64  `json:"bitrate,omitempty"`
 	Channels        *int64  `json:"channels,omitempty"`
-	Codec           *string `json:"codec,omitempty"`
 	FilePath        string  `json:"file_path"`
 	FileSize        *int64  `json:"file_size,omitempty"`
 	ISRC            *string `json:"isrc,omitempty"`
@@ -102,3 +101,35 @@ type TrackPreview struct {
 	Source   string `json:"source"`
 	ISRC     string `json:"isrc"`
 }
+
+type DeezerSearchResult struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	// Link   string `json:"link"`
+	Artist struct {
+		Name string `json:"name"`
+	} `json:"artist"`
+	Duration int `json:"duration"`
+	Album    struct {
+		Title       string `json:"title"`
+		CoverSmall  string `json:"cover_small"`
+		CoverMedium string `json:"cover_medium"`
+	} `json:"album"`
+	Image string `json:"image"`
+}
+
+type DeezerSearchResponse struct {
+	Data []DeezerSearchResult `json:"data"`
+}
+
+// To respond with a status to the client
+// We need this type in a neutral package like this
+type DownloadStatus string
+
+const (
+	StatusSuccess     DownloadStatus = "success"
+	StatusDownloading DownloadStatus = "downloading"
+	StatusIndexing    DownloadStatus = "indexing"
+	StatusFailed      DownloadStatus = "failed"
+	StatusCanceled    DownloadStatus = "canceled"
+)

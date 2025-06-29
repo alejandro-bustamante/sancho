@@ -40,12 +40,12 @@ func main() {
 	queries := db.New(conn)
 
 	// Initialize services and inject dependencies
+	indexerService := service.NewIndexer(queries)
 	proxyHandler := controller.NewProxyCORSHandler()
-	streamRipService := service.NewStreamripService()
-	indexerService := service.NewIndexerService(queries)
+	streamRipService := service.NewStreamrip(indexerService, queries)
 
 	// Initialize handlers and inject dependencies
-	downloadHandler := controller.NewDownloadHandler(streamRipService)
+	downloadHandler := controller.NewMusicHandler(streamRipService, indexerService)
 	libraryHandler := controller.NewLibraryHandler(queries, indexerService)
 
 	// Configure the router

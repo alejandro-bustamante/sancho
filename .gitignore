@@ -3,5 +3,6 @@ go.mod
 go.sum
 server/database/dev.*
 server/.env
+server/cmd/bitrate
 
 .env

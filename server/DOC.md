@@ -164,68 +164,67 @@ service/song_service.go → decide si hay que descargar o no
 ---
 
 Database schema:
--- Tabla de usuario
+CREATE TABLE schema_migrations (version uint64,dirty bool);
+CREATE UNIQUE INDEX version_unique ON schema_migrations (version);
 CREATE TABLE user (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 username TEXT NOT NULL UNIQUE,
 password_hash TEXT NOT NULL,
 email TEXT UNIQUE,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
 last_login TIMESTAMP,
 is_active BOOLEAN DEFAULT TRUE
 );
--- Tabla de artista
+CREATE TABLE sqlite_sequence(name,seq);
 CREATE TABLE artist (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 name TEXT NOT NULL,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+normalized_name TEXT NOT NULL,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
--- Tabla de álbum
 CREATE TABLE album (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 title TEXT NOT NULL,
+normalized_title TEXT NOT NULL,
 artist_id INTEGER,
 release_date TEXT,
 album_art_path TEXT,
 genre TEXT,
-year INTEGER,
 total_tracks INTEGER,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
 FOREIGN KEY (artist_id) REFERENCES artist(id)
 );
--- Tabla de track (canción)
 CREATE TABLE track (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 title TEXT NOT NULL,
+normalized_title TEXT NOT NULL,
 artist_id INTEGER,
 album_id INTEGER,
-duration INTEGER, -- en segundos
+duration INTEGER, -- en milisegundos
 track_number INTEGER,
 disc_number INTEGER DEFAULT 1,
 sample_rate INTEGER,
-bit_depth INTEGER,
+-- bit_depth INTEGER,
 bitrate INTEGER,
 channels INTEGER,
-codec TEXT,
+-- codec TEXT,
 file_path TEXT NOT NULL, -- ruta en la carpeta principal
 file_size INTEGER,
 isrc TEXT, -- Código ISRC para identificación
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
 FOREIGN KEY (artist_id) REFERENCES artist(id),
 FOREIGN KEY (album_id) REFERENCES album(id)
 );
--- Tabla para manejar la relación entre usuarios y tracks (descargas y symlinks)
 CREATE TABLE user_track (
 user_id INTEGER,
 track_id INTEGER,
 symlink_path TEXT NOT NULL, -- ruta del symlink en la carpeta del usuario
-download_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+download_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
 FOREIGN KEY (user_id) REFERENCES user(id),
 FOREIGN KEY (track_id) REFERENCES track(id),
 PRIMARY KEY (user_id, track_id)
 );
--- Tabla para el historial de descargas
 CREATE TABLE download_history (
 id INTEGER PRIMARY KEY AUTOINCREMENT,
 user_id INTEGER,
@@ -233,15 +232,14 @@ track_id INTEGER,
 quality INTEGER CHECK(quality IN (0, 1, 2, 3)), -- calidad de la descarga (0-3)
 status TEXT CHECK(status IN ('success', 'failed', 'pending')),
 service TEXT, -- qobuz, tidal, etc.
-started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
 completed_at TIMESTAMP,
 error_message TEXT,
 FOREIGN KEY (user_id) REFERENCES user(id),
 FOREIGN KEY (track_id) REFERENCES track(id)
 );
--- Índices para optimizar consultas comunes
-CREATE INDEX idx_track_title ON track(title);
-CREATE INDEX idx_album_title ON album(title);
-CREATE INDEX idx_artist_name ON artist(name);
+CREATE INDEX idx_track_title ON track(normalized_title);
+CREATE INDEX idx_album_title ON album(normalized_title);
+CREATE INDEX idx_artist_name ON artist(normalized_name);
 CREATE INDEX idx_user_track_user_id ON user_track(user_id);
 CREATE INDEX idx_track_isrc ON track(isrc);

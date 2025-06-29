@@ -8,14 +8,25 @@
 		isLoading.set(true);
 		tracks.set([]);
 
-		const proxyUrl = 'http://localhost:8081/proxy';
-		const apiUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
-		const url = `${proxyUrl}?url=${encodeURIComponent(apiUrl)}`;
+		// const proxyUrl = 'http://localhost:8081/proxy';
+		// const apiUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}`;
+		// const url = `${proxyUrl}?url=${encodeURIComponent(apiUrl)}`;
 
 		try {
-			const res = await fetch(url);
+
+			const res = await fetch('http://localhost:8081/search/deezer', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ title: query })
+			});
+
 			const data = await res.json();
-			tracks.set(data.data || []);
+			console.log(data)
+			// const res = await fetch(url);
+			// const data = await res.json();
+			tracks.set(data.results || []);
 		} catch (error) {
 			notifications.update((n) => [
 				...n,

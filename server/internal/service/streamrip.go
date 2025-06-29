@@ -2,9 +2,13 @@ package service
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"encoding/json"
@@ -12,63 +16,162 @@ import (
 	"strings"
 
 	model "github.com/alejandro-bustamante/sancho/server/internal/model"
+	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 )
 
-type StreamripProd struct{}
-
-func NewStreamripService() *StreamripProd {
-	return &StreamripProd{}
+// Code to handle download's status
+type DownloadTracker struct {
+	sync.Mutex
+	status map[string]model.DownloadStatus
+	errs   map[string]string
 }
 
-func (s *StreamripProd) DownloadTrack(url, title, artist, album, user string) (string, error) {
-	// Generar un ID único para la descarga
-	downloadID := fmt.Sprintf("%d", time.Now().UnixNano())
-
-	// Verificar que el comando rip existe
-	_, err := exec.LookPath("srip")
-	if err != nil {
-		return "", fmt.Errorf("sancho-streamrip (srip command) is not installed or not present on the PATH: %w", err)
+func NewDownloadTracker() *DownloadTracker {
+	return &DownloadTracker{
+		status: make(map[string]model.DownloadStatus),
+		errs:   make(map[string]string),
 	}
+}
 
-	// Configurar path de salida basado en el usuario
-	// outputPath := fmt.Sprintf("Downloads/%s", user)
+func (dt *DownloadTracker) SetStatus(id string, s model.DownloadStatus) {
+	dt.Lock()
+	defer dt.Unlock()
+	dt.status[id] = s
+}
 
-	// Capturar salida del comando para debug
+func (dt *DownloadTracker) SetError(id string, msg string) {
+	dt.Lock()
+	defer dt.Unlock()
+	dt.errs[id] = msg
+	dt.status[id] = model.StatusFailed
+}
+
+func (dt *DownloadTracker) Get(id string) (model.DownloadStatus, string) {
+	dt.Lock()
+	defer dt.Unlock()
+	return dt.status[id], dt.errs[id]
+}
+
+func (dt *DownloadTracker) Delete(id string) {
+	dt.Lock()
+	defer dt.Unlock()
+	delete(dt.status, id)
+	delete(dt.errs, id)
+}
+
+// Type definition for the main service
+type Streamrip struct {
+	tracker *DownloadTracker
+	indexer *Indexer
+	queries *db.Queries
+}
+
+func NewStreamrip(indexer *Indexer, queries *db.Queries) *Streamrip {
+	return &Streamrip{
+		tracker: NewDownloadTracker(),
+		indexer: indexer,
+		queries: queries,
+	}
+}
+
+type streamripJSONOutput struct {
+	DownloadPath string `json:"downloadPath"`
+}
+
+func (s *Streamrip) DownloadTrack(ctx context.Context, songID, user string, quality int64) (string, error) {
+	downloadID := fmt.Sprintf("%d", time.Now().UnixNano())
+	s.tracker.SetStatus(downloadID, model.StatusDownloading)
+
+	cmd := exec.Command("srip", "--no-db", "id", "qobuz", "track", songID)
+
 	var stdout, stderr bytes.Buffer
-
-	// Construir comando de streamrip CORRECTAMENTE
-	// Notar que 'url' es un subcomando, seguido de la URL real
-	cmd := exec.Command(
-		"rip",
-		"url", // Subcomando para URLs
-		url,   // La URL real como argumento
-	)
-
-	// Configurar captura de salida
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Lanzar comando
-	log.Printf("Executin command: %v", cmd.Args)
+	log.Printf("Executing command: %v", cmd.Args)
 	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("error starting download: %w", err)
+		s.tracker.SetError(downloadID, fmt.Sprintf("start error: %v", err))
+		//To make sure context doesn't timeout
+		ctx = context.Background()
+		go s.saveDownloadHistory(ctx, downloadID, user, 0, 0, "failed", err.Error())
+		return downloadID, err
 	}
 
-	// Iniciar una goroutine para capturar el resultado final sin bloquear la respuesta HTTP
+	time.AfterFunc(5*time.Minute, func() {
+		s.tracker.Delete(downloadID)
+	})
+
+	ctx = context.Background()
 	go func() {
-		err := cmd.Wait()
-		if err != nil {
-			log.Printf("Error in the download %s: %v\nStderr: %s", downloadID, err, stderr.String())
-		} else {
-			log.Printf("Download %s completed successfully \nOutput: %s", downloadID, stdout.String())
+		if err := cmd.Wait(); err != nil {
+			errMsg := fmt.Sprintf("rip error: %v\n%s", err, stderr.String())
+			s.tracker.SetError(downloadID, errMsg)
+			s.saveDownloadHistory(ctx, downloadID, user, 0, 0, "failed", errMsg)
+			return
 		}
+
+		downloadPath, err := extractDownloadPath(stdout.String())
+		if err != nil {
+			errMsg := fmt.Sprintf("parse error: %v", err)
+			s.tracker.SetError(downloadID, errMsg)
+			s.saveDownloadHistory(ctx, downloadID, user, 0, 0, "failed", errMsg)
+			return
+		}
+
+		s.tracker.SetStatus(downloadID, model.StatusIndexing)
+
+		info, err := os.Stat(downloadPath)
+		if err != nil {
+			errMsg := fmt.Sprintf("file not found: %v", err)
+			s.tracker.SetError(downloadID, errMsg)
+			s.saveDownloadHistory(ctx, downloadID, user, 0, 0, "failed", errMsg)
+			return
+		}
+
+		trackID, err := s.indexer.IndexFile(ctx, info, downloadPath, user)
+		if err != nil {
+			errMsg := fmt.Sprintf("indexing error: %v", err)
+			s.tracker.SetError(downloadID, errMsg)
+			s.saveDownloadHistory(ctx, downloadID, user, 0, 0, "failed", errMsg)
+			return
+		}
+
+		s.tracker.SetStatus(downloadID, model.StatusSuccess)
+		s.saveDownloadHistory(ctx, downloadID, user, trackID, quality, "success", "")
 	}()
 
 	return downloadID, nil
 }
 
+func (s *Streamrip) GetDownloadStatus(id string) (model.DownloadStatus, string) {
+	return s.tracker.Get(id)
+}
+
+func extractDownloadPath(output string) (string, error) {
+	start := strings.Index(output, "---BEGIN JSON---")
+	end := strings.Index(output, "---END JSON---")
+
+	if start == -1 || end == -1 || start >= end {
+		return "", fmt.Errorf("could not find JSON delimiters")
+	}
+
+	jsonRaw := output[start+len("---BEGIN JSON---") : end]
+	jsonRaw = strings.TrimSpace(jsonRaw)
+
+	var parsed streamripJSONOutput
+	if err := json.Unmarshal([]byte(jsonRaw), &parsed); err != nil {
+		return "", fmt.Errorf("error parsing json block: %w", err)
+	}
+
+	if parsed.DownloadPath == "" {
+		return "", fmt.Errorf("parsed JSON has empty downloadPath")
+	}
+
+	return parsed.DownloadPath, nil
+}
+
 // SearchSong ejecuta una búsqueda usando streamrip y devuelve los resultados en una estructura Go
-func (s *StreamripProd) SearchSong(source, mediaType, query string) ([]model.StreamripSearchResult, error) {
+func (s *Streamrip) SearchSong(source, mediaType, query string) ([]model.StreamripSearchResult, error) {
 	// Verificar que el binario existe
 	_, err := exec.LookPath("srip")
 	if err != nil {
@@ -96,4 +199,42 @@ func (s *StreamripProd) SearchSong(source, mediaType, query string) ([]model.Str
 	}
 
 	return results, nil
+}
+
+func (s *Streamrip) saveDownloadHistory(
+	ctx context.Context,
+	downloadID, user string,
+	trackID int64,
+	quality int64,
+	status string,
+	errorMsg string,
+) {
+	userData, err := s.queries.GetUserByUsername(ctx, user)
+	if err != nil {
+		log.Printf("Could not find the user %s: %v", user, err)
+		return
+	}
+
+	params := db.InsertDownloadHistoryParams{
+		ID:      downloadID,
+		UserID:  sql.NullInt64{Int64: userData.ID, Valid: userData.ID > 0},
+		Status:  sql.NullString{String: status, Valid: status != ""},
+		Service: sql.NullString{String: "qobuz", Valid: true},
+	}
+
+	if errorMsg != "" {
+		params.ErrorMessage = sql.NullString{String: errorMsg, Valid: true}
+		params.CompletedAt = sql.NullTime{Time: time.Now(), Valid: true}
+	}
+
+	if status == "success" {
+		params.CompletedAt = sql.NullTime{Time: time.Now(), Valid: true}
+		params.TrackID = sql.NullInt64{Int64: trackID, Valid: true}
+		params.Quality = sql.NullInt64{Int64: quality, Valid: true}
+	}
+
+	_, err = s.queries.InsertDownloadHistory(ctx, params)
+	if err != nil {
+		log.Printf("Error guardando historial de descarga: %v", err)
+	}
 }

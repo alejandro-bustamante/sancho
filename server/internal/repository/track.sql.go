@@ -13,16 +13,15 @@ import (
 const insertTrack = `-- name: InsertTrack :one
 INSERT INTO track (
   title, normalized_title, artist_id, album_id, duration, track_number, disc_number,
-  sample_rate, bit_depth, bitrate, channels, codec,
-  file_path, file_size, isrc
+  sample_rate, bitrate, channels, file_path, file_size, isrc, composer
 ) VALUES (
   ?1, ?2, ?3, 
   ?4, ?5, ?6,
   ?7, ?8, ?9,
   ?10, ?11, ?12,
-  ?13, ?14, ?15
+  ?13, ?14
 )
-RETURNING id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bit_depth, bitrate, channels, codec, file_path, file_size, isrc, created_at
+RETURNING id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bitrate, channels, file_path, file_size, isrc, composer, created_at
 `
 
 type InsertTrackParams struct {
@@ -34,13 +33,12 @@ type InsertTrackParams struct {
 	TrackNumber     sql.NullInt64  `json:"track_number"`
 	DiscNumber      sql.NullInt64  `json:"disc_number"`
 	SampleRate      sql.NullInt64  `json:"sample_rate"`
-	BitDepth        sql.NullInt64  `json:"bit_depth"`
 	Bitrate         sql.NullInt64  `json:"bitrate"`
 	Channels        sql.NullInt64  `json:"channels"`
-	Codec           sql.NullString `json:"codec"`
 	FilePath        string         `json:"file_path"`
 	FileSize        sql.NullInt64  `json:"file_size"`
 	Isrc            sql.NullString `json:"isrc"`
+	Composer        sql.NullString `json:"composer"`
 }
 
 func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) (Track, error) {
@@ -53,13 +51,12 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) (Track
 		arg.TrackNumber,
 		arg.DiscNumber,
 		arg.SampleRate,
-		arg.BitDepth,
 		arg.Bitrate,
 		arg.Channels,
-		arg.Codec,
 		arg.FilePath,
 		arg.FileSize,
 		arg.Isrc,
+		arg.Composer,
 	)
 	var i Track
 	err := row.Scan(
@@ -72,20 +69,19 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) (Track
 		&i.TrackNumber,
 		&i.DiscNumber,
 		&i.SampleRate,
-		&i.BitDepth,
 		&i.Bitrate,
 		&i.Channels,
-		&i.Codec,
 		&i.FilePath,
 		&i.FileSize,
 		&i.Isrc,
+		&i.Composer,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listTracksByDate = `-- name: ListTracksByDate :many
-SELECT id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bit_depth, bitrate, channels, codec, file_path, file_size, isrc, created_at FROM track ORDER BY created_at
+SELECT id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bitrate, channels, file_path, file_size, isrc, composer, created_at FROM track ORDER BY created_at
 `
 
 func (q *Queries) ListTracksByDate(ctx context.Context) ([]Track, error) {
@@ -107,13 +103,12 @@ func (q *Queries) ListTracksByDate(ctx context.Context) ([]Track, error) {
 			&i.TrackNumber,
 			&i.DiscNumber,
 			&i.SampleRate,
-			&i.BitDepth,
 			&i.Bitrate,
 			&i.Channels,
-			&i.Codec,
 			&i.FilePath,
 			&i.FileSize,
 			&i.Isrc,
+			&i.Composer,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -130,7 +125,7 @@ func (q *Queries) ListTracksByDate(ctx context.Context) ([]Track, error) {
 }
 
 const searchTracksByTitle = `-- name: SearchTracksByTitle :many
-SELECT id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bit_depth, bitrate, channels, codec, file_path, file_size, isrc, created_at FROM track
+SELECT id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bitrate, channels, file_path, file_size, isrc, composer, created_at FROM track
 WHERE LOWER(title) LIKE LOWER('%' || ?1 || '%')
 ORDER BY title DESC
 `
@@ -154,13 +149,12 @@ func (q *Queries) SearchTracksByTitle(ctx context.Context, title sql.NullString)
 			&i.TrackNumber,
 			&i.DiscNumber,
 			&i.SampleRate,
-			&i.BitDepth,
 			&i.Bitrate,
 			&i.Channels,
-			&i.Codec,
 			&i.FilePath,
 			&i.FileSize,
 			&i.Isrc,
+			&i.Composer,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
