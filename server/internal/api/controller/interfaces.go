@@ -8,7 +8,7 @@ import (
 )
 
 type Streamrip interface {
-	DownloadTrack(ctx context.Context, songID, user string, quality int64) (string, error)
+	EnsureTrackForUser(ctx context.Context, songID, user, isrc string, quality int64) (*model.DownloadResult, error)
 	SearchSong(source, mediaType, query string) ([]model.StreamripSearchResult, error)
 	GetDownloadStatus(downloadID string) (model.DownloadStatus, string)
 }
@@ -16,4 +16,8 @@ type Streamrip interface {
 type Indexer interface {
 	IndexFolder(ctx context.Context, rootDir, user string) error
 	IndexFile(ctx context.Context, info os.FileInfo, path, user string) (trackID int64, err error)
+}
+
+type FileManager interface {
+	LinkTrackToUser(ctx context.Context, isrc, user string) (symlinkPath string, err error)
 }

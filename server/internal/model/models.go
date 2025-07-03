@@ -52,13 +52,14 @@ type Track struct {
 }
 
 type User struct {
-	ID        int64   `json:"id"`
-	Username  string  `json:"username"`
-	Email     *string `json:"email,omitempty"`
-	CreatedAt string  `json:"created_at"`
-	UpdatedAt string  `json:"updated_at"`
-	LastLogin *string `json:"last_login,omitempty"`
-	IsActive  *bool   `json:"is_active,omitempty"`
+	ID           int64   `json:"id"`
+	Username     string  `json:"username"`
+	PasswordHash string  `json:"password_hash"`
+	Email        *string `json:"email,omitempty"`
+	CreatedAt    string  `json:"created_at"`
+	UpdatedAt    string  `json:"updated_at"`
+	LastLogin    *string `json:"last_login,omitempty"`
+	IsActive     *bool   `json:"is_active,omitempty"`
 }
 
 type UserTrack struct {
@@ -133,3 +134,20 @@ const (
 	StatusFailed      DownloadStatus = "failed"
 	StatusCanceled    DownloadStatus = "canceled"
 )
+
+// To inform the client of what took place
+// Download, just link already avaliable song or
+// The user already has the song downloaded and linked
+// We need this type in a neutral package like this
+type DownloadAction string
+
+const (
+	ActionNoop        DownloadAction = "noop"
+	ActionLinked      DownloadAction = "linked"
+	ActionDownloading DownloadAction = "downloading"
+)
+
+type DownloadResult struct {
+	ID     string
+	Action DownloadAction
+}

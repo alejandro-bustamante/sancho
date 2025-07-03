@@ -73,8 +73,8 @@ type User struct {
 }
 
 type UserTrack struct {
-	UserID       sql.NullInt64 `json:"user_id"`
-	TrackID      sql.NullInt64 `json:"track_id"`
-	SymlinkPath  string        `json:"symlink_path"`
-	DownloadDate time.Time     `json:"download_date"`
+	UserID      sql.NullInt64 `json:"user_id"`
+	TrackID     sql.NullInt64 `json:"track_id"`
+	SymlinkPath string        `json:"symlink_path"`
+	LinkedDate  time.Time     `json:"linked_date"`
 }

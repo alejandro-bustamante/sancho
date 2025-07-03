@@ -27,7 +27,7 @@ func (q *Queries) AddTrackToUser(ctx context.Context, arg AddTrackToUserParams) 
 }
 
 const getUserTrack = `-- name: GetUserTrack :one
-SELECT user_id, track_id, symlink_path, download_date FROM user_track
+SELECT user_id, track_id, symlink_path, linked_date FROM user_track
 WHERE user_id = ?1 AND track_id = ?2
 `
 
@@ -43,7 +43,29 @@ func (q *Queries) GetUserTrack(ctx context.Context, arg GetUserTrackParams) (Use
 		&i.UserID,
 		&i.TrackID,
 		&i.SymlinkPath,
-		&i.DownloadDate,
+		&i.LinkedDate,
 	)
 	return i, err
+}
+
+const isTrackLinkedToUserByUsernameAndISRC = `-- name: IsTrackLinkedToUserByUsernameAndISRC :one
+SELECT EXISTS (
+  SELECT 1
+  FROM user_track ut
+  JOIN track t ON ut.track_id = t.id
+  JOIN user u ON ut.user_id = u.id
+  WHERE u.username = ?1 AND t.isrc = ?2
+)
+`
+
+type IsTrackLinkedToUserByUsernameAndISRCParams struct {
+	Username string         `json:"username"`
+	Isrc     sql.NullString `json:"isrc"`
+}
+
+func (q *Queries) IsTrackLinkedToUserByUsernameAndISRC(ctx context.Context, arg IsTrackLinkedToUserByUsernameAndISRCParams) (int64, error) {
+	row := q.queryRow(ctx, q.isTrackLinkedToUserByUsernameAndISRCStmt, isTrackLinkedToUserByUsernameAndISRC, arg.Username, arg.Isrc)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }

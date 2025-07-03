@@ -61,16 +61,18 @@ func (dt *DownloadTracker) Delete(id string) {
 
 // Type definition for the main service
 type Streamrip struct {
-	tracker *DownloadTracker
-	indexer *Indexer
-	queries *db.Queries
+	tracker     *DownloadTracker
+	indexer     *Indexer
+	fileManager *FileManager
+	queries     *db.Queries
 }
 
-func NewStreamrip(indexer *Indexer, queries *db.Queries) *Streamrip {
+func NewStreamrip(indexer *Indexer, fileManager *FileManager, queries *db.Queries) *Streamrip {
 	return &Streamrip{
-		tracker: NewDownloadTracker(),
-		indexer: indexer,
-		queries: queries,
+		tracker:     NewDownloadTracker(),
+		indexer:     indexer,
+		fileManager: fileManager,
+		queries:     queries,
 	}
 }
 
@@ -78,8 +80,43 @@ type streamripJSONOutput struct {
 	DownloadPath string `json:"downloadPath"`
 }
 
-func (s *Streamrip) DownloadTrack(ctx context.Context, songID, user string, quality int64) (string, error) {
+func (s *Streamrip) EnsureTrackForUser(ctx context.Context, songID, user, isrc string, quality int64) (*model.DownloadResult, error) {
+	exists, err := s.indexer.IsTrackInLibrary(context.Background(), isrc)
+	if err != nil {
+		return nil, err
+	}
+	// Check if already linked
+	trackLinkedParams := db.IsTrackLinkedToUserByUsernameAndISRCParams{
+		Username: user,
+		Isrc:     sql.NullString{String: isrc, Valid: isrc != ""},
+	}
+	isLinkedInt, err := s.queries.IsTrackLinkedToUserByUsernameAndISRC(context.Background(), trackLinkedParams)
+	if err != nil {
+		return nil, err
+	}
+	isLinked := isLinkedInt == 1
+
 	downloadID := fmt.Sprintf("%d", time.Now().UnixNano())
+
+	if exists && isLinked {
+		return &model.DownloadResult{ID: downloadID, Action: model.ActionNoop}, nil
+	} else if exists { // Just get the track info from the db and make the symlink to the apropiate user
+		// LinkTrackToUser creates the record for the symlink in the db
+		_, err := s.fileManager.LinkTrackToUser(ctx, isrc, user)
+		if err != nil {
+			return nil, err
+		}
+
+		s.tracker.SetStatus(downloadID, model.StatusSuccess)
+		track, err := s.queries.SearchTracksByISRC(context.Background(), sql.NullString{String: isrc, Valid: isrc != ""})
+		if err != nil && err != sql.ErrNoRows {
+			return nil, fmt.Errorf("error searching for the song by ISRC in the DB: %w", err)
+		}
+
+		go s.saveDownloadHistory(ctx, downloadID, user, track.ID, quality, "success", "")
+		return &model.DownloadResult{ID: downloadID, Action: model.ActionLinked}, nil
+	}
+
 	s.tracker.SetStatus(downloadID, model.StatusDownloading)
 
 	cmd := exec.Command("srip", "--no-db", "id", "qobuz", "track", songID)
@@ -94,10 +131,10 @@ func (s *Streamrip) DownloadTrack(ctx context.Context, songID, user string, qual
 		//To make sure context doesn't timeout
 		ctx = context.Background()
 		go s.saveDownloadHistory(ctx, downloadID, user, 0, 0, "failed", err.Error())
-		return downloadID, err
+		return nil, err
 	}
 
-	time.AfterFunc(5*time.Minute, func() {
+	time.AfterFunc(15*time.Minute, func() {
 		s.tracker.Delete(downloadID)
 	})
 
@@ -120,7 +157,7 @@ func (s *Streamrip) DownloadTrack(ctx context.Context, songID, user string, qual
 
 		s.tracker.SetStatus(downloadID, model.StatusIndexing)
 
-		info, err := os.Stat(downloadPath)
+		fileInfo, err := os.Stat(downloadPath)
 		if err != nil {
 			errMsg := fmt.Sprintf("file not found: %v", err)
 			s.tracker.SetError(downloadID, errMsg)
@@ -128,9 +165,17 @@ func (s *Streamrip) DownloadTrack(ctx context.Context, songID, user string, qual
 			return
 		}
 
-		trackID, err := s.indexer.IndexFile(ctx, info, downloadPath, user)
+		trackID, err := s.indexer.IndexFile(ctx, fileInfo, downloadPath, user)
 		if err != nil {
 			errMsg := fmt.Sprintf("indexing error: %v", err)
+			s.tracker.SetError(downloadID, errMsg)
+			s.saveDownloadHistory(ctx, downloadID, user, 0, 0, "failed", errMsg)
+			return
+		}
+
+		_, err = s.fileManager.LinkTrackToUser(ctx, isrc, user)
+		if err != nil {
+			errMsg := fmt.Sprintf("symlink error: %v", err)
 			s.tracker.SetError(downloadID, errMsg)
 			s.saveDownloadHistory(ctx, downloadID, user, 0, 0, "failed", errMsg)
 			return
@@ -140,7 +185,7 @@ func (s *Streamrip) DownloadTrack(ctx context.Context, songID, user string, qual
 		s.saveDownloadHistory(ctx, downloadID, user, trackID, quality, "success", "")
 	}()
 
-	return downloadID, nil
+	return &model.DownloadResult{ID: downloadID, Action: model.ActionDownloading}, nil
 }
 
 func (s *Streamrip) GetDownloadStatus(id string) (model.DownloadStatus, string) {
@@ -209,6 +254,7 @@ func (s *Streamrip) saveDownloadHistory(
 	status string,
 	errorMsg string,
 ) {
+	ctx = context.Background()
 	userData, err := s.queries.GetUserByUsername(ctx, user)
 	if err != nil {
 		log.Printf("Could not find the user %s: %v", user, err)

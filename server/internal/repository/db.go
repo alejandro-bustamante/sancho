@@ -39,11 +39,17 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getAlbumByNormalizedTitleAndArtistStmt, err = db.PrepareContext(ctx, getAlbumByNormalizedTitleAndArtist); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlbumByNormalizedTitleAndArtist: %w", err)
 	}
+	if q.getAlbumByTrackIDStmt, err = db.PrepareContext(ctx, getAlbumByTrackID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAlbumByTrackID: %w", err)
+	}
 	if q.getArtistByDeezerIDStmt, err = db.PrepareContext(ctx, getArtistByDeezerID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetArtistByDeezerID: %w", err)
 	}
 	if q.getArtistByNormalizedNameStmt, err = db.PrepareContext(ctx, getArtistByNormalizedName); err != nil {
 		return nil, fmt.Errorf("error preparing query GetArtistByNormalizedName: %w", err)
+	}
+	if q.getArtistByTrackIDStmt, err = db.PrepareContext(ctx, getArtistByTrackID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetArtistByTrackID: %w", err)
 	}
 	if q.getUserByUsernameStmt, err = db.PrepareContext(ctx, getUserByUsername); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserByUsername: %w", err)
@@ -66,17 +72,29 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertUserStmt, err = db.PrepareContext(ctx, insertUser); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertUser: %w", err)
 	}
+	if q.isTrackLinkedToUserByUsernameAndISRCStmt, err = db.PrepareContext(ctx, isTrackLinkedToUserByUsernameAndISRC); err != nil {
+		return nil, fmt.Errorf("error preparing query IsTrackLinkedToUserByUsernameAndISRC: %w", err)
+	}
 	if q.listTracksByDateStmt, err = db.PrepareContext(ctx, listTracksByDate); err != nil {
 		return nil, fmt.Errorf("error preparing query ListTracksByDate: %w", err)
 	}
+	if q.searchTracksByISRCStmt, err = db.PrepareContext(ctx, searchTracksByISRC); err != nil {
+		return nil, fmt.Errorf("error preparing query SearchTracksByISRC: %w", err)
+	}
 	if q.searchTracksByTitleStmt, err = db.PrepareContext(ctx, searchTracksByTitle); err != nil {
 		return nil, fmt.Errorf("error preparing query SearchTracksByTitle: %w", err)
+	}
+	if q.trackExistsByISRCStmt, err = db.PrepareContext(ctx, trackExistsByISRC); err != nil {
+		return nil, fmt.Errorf("error preparing query TrackExistsByISRC: %w", err)
 	}
 	if q.updateDownloadCompletionStmt, err = db.PrepareContext(ctx, updateDownloadCompletion); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateDownloadCompletion: %w", err)
 	}
 	if q.updateLastLoginStmt, err = db.PrepareContext(ctx, updateLastLogin); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateLastLogin: %w", err)
+	}
+	if q.updateTrackFilePathStmt, err = db.PrepareContext(ctx, updateTrackFilePath); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateTrackFilePath: %w", err)
 	}
 	return &q, nil
 }
@@ -108,6 +126,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getAlbumByNormalizedTitleAndArtistStmt: %w", cerr)
 		}
 	}
+	if q.getAlbumByTrackIDStmt != nil {
+		if cerr := q.getAlbumByTrackIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAlbumByTrackIDStmt: %w", cerr)
+		}
+	}
 	if q.getArtistByDeezerIDStmt != nil {
 		if cerr := q.getArtistByDeezerIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getArtistByDeezerIDStmt: %w", cerr)
@@ -116,6 +139,11 @@ func (q *Queries) Close() error {
 	if q.getArtistByNormalizedNameStmt != nil {
 		if cerr := q.getArtistByNormalizedNameStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getArtistByNormalizedNameStmt: %w", cerr)
+		}
+	}
+	if q.getArtistByTrackIDStmt != nil {
+		if cerr := q.getArtistByTrackIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getArtistByTrackIDStmt: %w", cerr)
 		}
 	}
 	if q.getUserByUsernameStmt != nil {
@@ -153,14 +181,29 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing insertUserStmt: %w", cerr)
 		}
 	}
+	if q.isTrackLinkedToUserByUsernameAndISRCStmt != nil {
+		if cerr := q.isTrackLinkedToUserByUsernameAndISRCStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing isTrackLinkedToUserByUsernameAndISRCStmt: %w", cerr)
+		}
+	}
 	if q.listTracksByDateStmt != nil {
 		if cerr := q.listTracksByDateStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listTracksByDateStmt: %w", cerr)
 		}
 	}
+	if q.searchTracksByISRCStmt != nil {
+		if cerr := q.searchTracksByISRCStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing searchTracksByISRCStmt: %w", cerr)
+		}
+	}
 	if q.searchTracksByTitleStmt != nil {
 		if cerr := q.searchTracksByTitleStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing searchTracksByTitleStmt: %w", cerr)
+		}
+	}
+	if q.trackExistsByISRCStmt != nil {
+		if cerr := q.trackExistsByISRCStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing trackExistsByISRCStmt: %w", cerr)
 		}
 	}
 	if q.updateDownloadCompletionStmt != nil {
@@ -171,6 +214,11 @@ func (q *Queries) Close() error {
 	if q.updateLastLoginStmt != nil {
 		if cerr := q.updateLastLoginStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateLastLoginStmt: %w", cerr)
+		}
+	}
+	if q.updateTrackFilePathStmt != nil {
+		if cerr := q.updateTrackFilePathStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateTrackFilePathStmt: %w", cerr)
 		}
 	}
 	return err
@@ -210,49 +258,61 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                                     DBTX
-	tx                                     *sql.Tx
-	addTrackToUserStmt                     *sql.Stmt
-	albumExistsByDeezerIDStmt              *sql.Stmt
-	artistExistsByDeezerIDStmt             *sql.Stmt
-	getAlbumByDeezerIDStmt                 *sql.Stmt
-	getAlbumByNormalizedTitleAndArtistStmt *sql.Stmt
-	getArtistByDeezerIDStmt                *sql.Stmt
-	getArtistByNormalizedNameStmt          *sql.Stmt
-	getUserByUsernameStmt                  *sql.Stmt
-	getUserTrackStmt                       *sql.Stmt
-	insertAlbumStmt                        *sql.Stmt
-	insertArtistStmt                       *sql.Stmt
-	insertDownloadHistoryStmt              *sql.Stmt
-	insertTrackStmt                        *sql.Stmt
-	insertUserStmt                         *sql.Stmt
-	listTracksByDateStmt                   *sql.Stmt
-	searchTracksByTitleStmt                *sql.Stmt
-	updateDownloadCompletionStmt           *sql.Stmt
-	updateLastLoginStmt                    *sql.Stmt
+	db                                       DBTX
+	tx                                       *sql.Tx
+	addTrackToUserStmt                       *sql.Stmt
+	albumExistsByDeezerIDStmt                *sql.Stmt
+	artistExistsByDeezerIDStmt               *sql.Stmt
+	getAlbumByDeezerIDStmt                   *sql.Stmt
+	getAlbumByNormalizedTitleAndArtistStmt   *sql.Stmt
+	getAlbumByTrackIDStmt                    *sql.Stmt
+	getArtistByDeezerIDStmt                  *sql.Stmt
+	getArtistByNormalizedNameStmt            *sql.Stmt
+	getArtistByTrackIDStmt                   *sql.Stmt
+	getUserByUsernameStmt                    *sql.Stmt
+	getUserTrackStmt                         *sql.Stmt
+	insertAlbumStmt                          *sql.Stmt
+	insertArtistStmt                         *sql.Stmt
+	insertDownloadHistoryStmt                *sql.Stmt
+	insertTrackStmt                          *sql.Stmt
+	insertUserStmt                           *sql.Stmt
+	isTrackLinkedToUserByUsernameAndISRCStmt *sql.Stmt
+	listTracksByDateStmt                     *sql.Stmt
+	searchTracksByISRCStmt                   *sql.Stmt
+	searchTracksByTitleStmt                  *sql.Stmt
+	trackExistsByISRCStmt                    *sql.Stmt
+	updateDownloadCompletionStmt             *sql.Stmt
+	updateLastLoginStmt                      *sql.Stmt
+	updateTrackFilePathStmt                  *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                                     tx,
-		tx:                                     tx,
-		addTrackToUserStmt:                     q.addTrackToUserStmt,
-		albumExistsByDeezerIDStmt:              q.albumExistsByDeezerIDStmt,
-		artistExistsByDeezerIDStmt:             q.artistExistsByDeezerIDStmt,
-		getAlbumByDeezerIDStmt:                 q.getAlbumByDeezerIDStmt,
-		getAlbumByNormalizedTitleAndArtistStmt: q.getAlbumByNormalizedTitleAndArtistStmt,
-		getArtistByDeezerIDStmt:                q.getArtistByDeezerIDStmt,
-		getArtistByNormalizedNameStmt:          q.getArtistByNormalizedNameStmt,
-		getUserByUsernameStmt:                  q.getUserByUsernameStmt,
-		getUserTrackStmt:                       q.getUserTrackStmt,
-		insertAlbumStmt:                        q.insertAlbumStmt,
-		insertArtistStmt:                       q.insertArtistStmt,
-		insertDownloadHistoryStmt:              q.insertDownloadHistoryStmt,
-		insertTrackStmt:                        q.insertTrackStmt,
-		insertUserStmt:                         q.insertUserStmt,
-		listTracksByDateStmt:                   q.listTracksByDateStmt,
-		searchTracksByTitleStmt:                q.searchTracksByTitleStmt,
-		updateDownloadCompletionStmt:           q.updateDownloadCompletionStmt,
-		updateLastLoginStmt:                    q.updateLastLoginStmt,
+		db:                                       tx,
+		tx:                                       tx,
+		addTrackToUserStmt:                       q.addTrackToUserStmt,
+		albumExistsByDeezerIDStmt:                q.albumExistsByDeezerIDStmt,
+		artistExistsByDeezerIDStmt:               q.artistExistsByDeezerIDStmt,
+		getAlbumByDeezerIDStmt:                   q.getAlbumByDeezerIDStmt,
+		getAlbumByNormalizedTitleAndArtistStmt:   q.getAlbumByNormalizedTitleAndArtistStmt,
+		getAlbumByTrackIDStmt:                    q.getAlbumByTrackIDStmt,
+		getArtistByDeezerIDStmt:                  q.getArtistByDeezerIDStmt,
+		getArtistByNormalizedNameStmt:            q.getArtistByNormalizedNameStmt,
+		getArtistByTrackIDStmt:                   q.getArtistByTrackIDStmt,
+		getUserByUsernameStmt:                    q.getUserByUsernameStmt,
+		getUserTrackStmt:                         q.getUserTrackStmt,
+		insertAlbumStmt:                          q.insertAlbumStmt,
+		insertArtistStmt:                         q.insertArtistStmt,
+		insertDownloadHistoryStmt:                q.insertDownloadHistoryStmt,
+		insertTrackStmt:                          q.insertTrackStmt,
+		insertUserStmt:                           q.insertUserStmt,
+		isTrackLinkedToUserByUsernameAndISRCStmt: q.isTrackLinkedToUserByUsernameAndISRCStmt,
+		listTracksByDateStmt:                     q.listTracksByDateStmt,
+		searchTracksByISRCStmt:                   q.searchTracksByISRCStmt,
+		searchTracksByTitleStmt:                  q.searchTracksByTitleStmt,
+		trackExistsByISRCStmt:                    q.trackExistsByISRCStmt,
+		updateDownloadCompletionStmt:             q.updateDownloadCompletionStmt,
+		updateLastLoginStmt:                      q.updateLastLoginStmt,
+		updateTrackFilePathStmt:                  q.updateTrackFilePathStmt,
 	}
 }

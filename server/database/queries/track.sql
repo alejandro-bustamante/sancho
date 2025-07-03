@@ -16,7 +16,31 @@ SELECT * FROM track
 WHERE LOWER(title) LIKE LOWER('%' || sqlc.arg('title') || '%')
 ORDER BY title DESC;
 
+-- name: SearchTracksByISRC :one
+SELECT * FROM track
+WHERE isrc = sqlc.arg('isrc')
+LIMIT 1;
+
 -- name: ListTracksByDate :many
 SELECT * FROM track ORDER BY created_at;
 
+-- name: TrackExistsByISRC :one
+SELECT EXISTS (
+  SELECT 1 FROM track WHERE isrc = sqlc.arg('isrc')
+);
+
+-- name: GetArtistByTrackID :one
+SELECT artist.* FROM track
+JOIN artist ON track.artist_id = artist.id
+WHERE track.id = sqlc.arg('track_id');
+
+-- name: GetAlbumByTrackID :one
+SELECT album.* FROM track
+JOIN album ON track.album_id = album.id
+WHERE track.id = sqlc.arg('track_id');
+
+-- name: UpdateTrackFilePath :exec
+UPDATE track
+SET file_path = sqlc.arg('file_path')
+WHERE id = sqlc.arg('track_id');
 

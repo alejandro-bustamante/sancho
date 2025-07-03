@@ -49,3 +49,14 @@ func NormalizeText(text string) (string, error) {
 	// Trim leading/trailing spaces.
 	return strings.TrimSpace(text), nil
 }
+
+func CleanStringJellyfin(text string) (string, error) {
+	// Jellyfin points at this chars <, >, :, ", /, \, |, ?, *
+	// as "known to cause issues"
+	reForbiddenChars, err := regexp.Compile(`[<>:"/\\|?*]`)
+	if err != nil {
+		return "", err
+	}
+	cleanedText := reForbiddenChars.ReplaceAllString(text, "")
+	return cleanedText, nil
+}

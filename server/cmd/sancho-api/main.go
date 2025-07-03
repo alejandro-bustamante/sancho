@@ -42,16 +42,18 @@ func main() {
 	// Initialize services and inject dependencies
 	indexerService := service.NewIndexer(queries)
 	proxyHandler := controller.NewProxyCORSHandler()
-	streamRipService := service.NewStreamrip(indexerService, queries)
+	fileMangerService := service.NewFileManager(queries)
+	streamripService := service.NewStreamrip(indexerService, fileMangerService, queries)
 
 	// Initialize handlers and inject dependencies
-	downloadHandler := controller.NewMusicHandler(streamRipService, indexerService)
+	downloadHandler := controller.NewMusicHandler(streamripService, indexerService, fileMangerService)
 	libraryHandler := controller.NewLibraryHandler(queries, indexerService)
+	userHandler := controller.NewUserHandler(queries)
 
 	// Configure the router
 	router := gin.Default()
 	router.Static("/client", "../client")
-	api.RegisterRoutes(router, proxyHandler, downloadHandler, libraryHandler)
+	api.RegisterRoutes(router, proxyHandler, downloadHandler, libraryHandler, userHandler)
 	log.Printf("Server running on http://localhost:%s", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Could not initialize the server. Error: %v", err)
