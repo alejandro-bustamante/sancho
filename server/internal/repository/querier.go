@@ -15,8 +15,10 @@ type Querier interface {
 	ArtistExistsByDeezerID(ctx context.Context, deezerID sql.NullString) (int64, error)
 	GetAlbumByDeezerID(ctx context.Context, deezerID sql.NullString) (Album, error)
 	GetAlbumByNormalizedTitleAndArtist(ctx context.Context, arg GetAlbumByNormalizedTitleAndArtistParams) (Album, error)
+	GetAlbumByTrackID(ctx context.Context, trackID int64) (Album, error)
 	GetArtistByDeezerID(ctx context.Context, deezerID sql.NullString) (Artist, error)
 	GetArtistByNormalizedName(ctx context.Context, normalizedName string) (Artist, error)
+	GetArtistByTrackID(ctx context.Context, trackID int64) (Artist, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUserTrack(ctx context.Context, arg GetUserTrackParams) (UserTrack, error)
 	InsertAlbum(ctx context.Context, arg InsertAlbumParams) (Album, error)
@@ -24,10 +26,14 @@ type Querier interface {
 	InsertDownloadHistory(ctx context.Context, arg InsertDownloadHistoryParams) (DownloadHistory, error)
 	InsertTrack(ctx context.Context, arg InsertTrackParams) (Track, error)
 	InsertUser(ctx context.Context, arg InsertUserParams) (User, error)
+	IsTrackLinkedToUserByUsernameAndISRC(ctx context.Context, arg IsTrackLinkedToUserByUsernameAndISRCParams) (int64, error)
 	ListTracksByDate(ctx context.Context) ([]Track, error)
+	SearchTracksByISRC(ctx context.Context, isrc sql.NullString) (Track, error)
 	SearchTracksByTitle(ctx context.Context, title sql.NullString) ([]Track, error)
+	TrackExistsByISRC(ctx context.Context, isrc sql.NullString) (int64, error)
 	UpdateDownloadCompletion(ctx context.Context, arg UpdateDownloadCompletionParams) error
 	UpdateLastLogin(ctx context.Context, id int64) error
+	UpdateTrackFilePath(ctx context.Context, arg UpdateTrackFilePathParams) error
 }
 
 var _ Querier = (*Queries)(nil)

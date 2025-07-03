@@ -120,7 +120,7 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 	// We've determined there IS an artist, we just insert the album
 	if !albumInDb {
 		//AlbumArtist tags seems to have more compatibility
-		normalizedAlbumName, err := NormalizeText(get(tag.AlbumArtist))
+		normalizedAlbumName, err := NormalizeText(get(tag.Album))
 		if err != nil {
 			return 0, fmt.Errorf("error normalizing albums name: %w", err)
 		}
@@ -157,9 +157,6 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 
 	// Insert track
 	title := get(tag.Title)
-	if title == "" {
-		title = filepath.Base(path)
-	}
 	trackNum := x.parseInt(get(tag.TrackNumber))
 	discNum := x.parseInt(get(tag.DiscNumber))
 	composer := get(tag.Composer)
@@ -187,29 +184,27 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 	}
 	track, err := x.queries.InsertTrack(ctx, params)
 	if err != nil {
-		return 0, fmt.Errorf("error insertando track: %w", err)
+		return 0, fmt.Errorf("error storing track: %w", err)
 	}
+
 	fmt.Printf("✓ %s (%s)\n", track.Title, track.FilePath)
 	return track.ID, nil
-
 }
 
 func (x *Indexer) isArtistInDB(ctx context.Context, deezerID string) (bool, error) {
 	existsInt, err := x.queries.ArtistExistsByDeezerID(ctx, sql.NullString{String: deezerID, Valid: true})
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("db error checking artist existence: %w", err)
 	}
-	exists := existsInt == 1
-	return exists, nil
+	return existsInt == 1, nil
 }
 
 func (x *Indexer) isAlbumInDB(ctx context.Context, deezerID string) (bool, error) {
 	existsInt, err := x.queries.AlbumExistsByDeezerID(ctx, sql.NullString{String: deezerID, Valid: true})
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("db error checking album existence: %w", err)
 	}
-	exists := existsInt == 1
-	return exists, nil
+	return existsInt == 1, nil
 }
 
 type deezerIDResponse struct {
@@ -290,4 +285,15 @@ func (x *Indexer) isAudioFile(path string) bool {
 	default:
 		return false
 	}
+}
+
+func (x *Indexer) IsTrackInLibrary(ctx context.Context, isrc string) (bool, error) {
+	ctx = context.Background()
+
+	existsInt, err := x.queries.TrackExistsByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
+	if err != nil {
+		return false, fmt.Errorf("db error checking track existence: %w", err)
+
+	}
+	return existsInt == 1, nil
 }

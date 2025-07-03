@@ -10,6 +10,49 @@ import (
 	"database/sql"
 )
 
+const getAlbumByTrackID = `-- name: GetAlbumByTrackID :one
+SELECT album.id, album.deezer_id, album.title, album.normalized_title, album.artist_id, album.release_date, album.album_art_path, album.genre, album.total_tracks, album.created_at FROM track
+JOIN album ON track.album_id = album.id
+WHERE track.id = ?1
+`
+
+func (q *Queries) GetAlbumByTrackID(ctx context.Context, trackID int64) (Album, error) {
+	row := q.queryRow(ctx, q.getAlbumByTrackIDStmt, getAlbumByTrackID, trackID)
+	var i Album
+	err := row.Scan(
+		&i.ID,
+		&i.DeezerID,
+		&i.Title,
+		&i.NormalizedTitle,
+		&i.ArtistID,
+		&i.ReleaseDate,
+		&i.AlbumArtPath,
+		&i.Genre,
+		&i.TotalTracks,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getArtistByTrackID = `-- name: GetArtistByTrackID :one
+SELECT artist.id, artist.deezer_id, artist.name, artist.normalized_name, artist.created_at FROM track
+JOIN artist ON track.artist_id = artist.id
+WHERE track.id = ?1
+`
+
+func (q *Queries) GetArtistByTrackID(ctx context.Context, trackID int64) (Artist, error) {
+	row := q.queryRow(ctx, q.getArtistByTrackIDStmt, getArtistByTrackID, trackID)
+	var i Artist
+	err := row.Scan(
+		&i.ID,
+		&i.DeezerID,
+		&i.Name,
+		&i.NormalizedName,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const insertTrack = `-- name: InsertTrack :one
 INSERT INTO track (
   title, normalized_title, artist_id, album_id, duration, track_number, disc_number,
@@ -124,6 +167,36 @@ func (q *Queries) ListTracksByDate(ctx context.Context) ([]Track, error) {
 	return items, nil
 }
 
+const searchTracksByISRC = `-- name: SearchTracksByISRC :one
+SELECT id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bitrate, channels, file_path, file_size, isrc, composer, created_at FROM track
+WHERE isrc = ?1
+LIMIT 1
+`
+
+func (q *Queries) SearchTracksByISRC(ctx context.Context, isrc sql.NullString) (Track, error) {
+	row := q.queryRow(ctx, q.searchTracksByISRCStmt, searchTracksByISRC, isrc)
+	var i Track
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.NormalizedTitle,
+		&i.ArtistID,
+		&i.AlbumID,
+		&i.Duration,
+		&i.TrackNumber,
+		&i.DiscNumber,
+		&i.SampleRate,
+		&i.Bitrate,
+		&i.Channels,
+		&i.FilePath,
+		&i.FileSize,
+		&i.Isrc,
+		&i.Composer,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const searchTracksByTitle = `-- name: SearchTracksByTitle :many
 SELECT id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bitrate, channels, file_path, file_size, isrc, composer, created_at FROM track
 WHERE LOWER(title) LIKE LOWER('%' || ?1 || '%')
@@ -168,4 +241,33 @@ func (q *Queries) SearchTracksByTitle(ctx context.Context, title sql.NullString)
 		return nil, err
 	}
 	return items, nil
+}
+
+const trackExistsByISRC = `-- name: TrackExistsByISRC :one
+SELECT EXISTS (
+  SELECT 1 FROM track WHERE isrc = ?1
+)
+`
+
+func (q *Queries) TrackExistsByISRC(ctx context.Context, isrc sql.NullString) (int64, error) {
+	row := q.queryRow(ctx, q.trackExistsByISRCStmt, trackExistsByISRC, isrc)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const updateTrackFilePath = `-- name: UpdateTrackFilePath :exec
+UPDATE track
+SET file_path = ?1
+WHERE id = ?2
+`
+
+type UpdateTrackFilePathParams struct {
+	FilePath string `json:"file_path"`
+	TrackID  int64  `json:"track_id"`
+}
+
+func (q *Queries) UpdateTrackFilePath(ctx context.Context, arg UpdateTrackFilePathParams) error {
+	_, err := q.exec(ctx, q.updateTrackFilePathStmt, updateTrackFilePath, arg.FilePath, arg.TrackID)
+	return err
 }

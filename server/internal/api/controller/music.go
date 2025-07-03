@@ -11,14 +11,16 @@ import (
 )
 
 type MusicHandler struct {
-	streamripService Streamrip
-	indexerService   Indexer
+	streamripService   Streamrip
+	indexerService     Indexer
+	fileManagerService FileManager
 }
 
-func NewMusicHandler(s Streamrip, x Indexer) *MusicHandler {
+func NewMusicHandler(s Streamrip, x Indexer, f FileManager) *MusicHandler {
 	return &MusicHandler{
-		streamripService: s,
-		indexerService:   x,
+		streamripService:   s,
+		indexerService:     x,
+		fileManagerService: f,
 	}
 }
 
@@ -46,18 +48,36 @@ func (h *MusicHandler) DownloadSingleTrack(c *gin.Context) {
 	}
 
 	log.Printf("Download started for song with Qobuz ID: %s, ISRC: %s", req.ID, req.ISRC)
-	downloadID, err := h.streamripService.DownloadTrack(c.Request.Context(), req.ID, req.User, req.Quality)
+	result, err := h.streamripService.EnsureTrackForUser(c.Request.Context(), req.ID, req.User, req.ISRC, req.Quality)
 	if err != nil {
 		log.Printf("Error downloading and indexing song: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start download", "details": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusAccepted, gin.H{
-		"downloadId": downloadID,
-		"status":     "downloading",
-		"message":    "Download has started, it's state can be checken on with the downloadID.",
-	})
+	switch result.Action {
+	case model.ActionNoop:
+		c.JSON(http.StatusOK, gin.H{
+			"downloadId": result.ID,
+			"status":     "exists",
+			"message":    "The song is already in your account.",
+		})
+	case model.ActionLinked:
+		c.JSON(http.StatusAccepted, gin.H{
+			"downloadId": result.ID,
+			"status":     "linking",
+			"message":    "The song was already downloaded. Linking to your account.",
+		})
+	case model.ActionDownloading:
+		c.JSON(http.StatusAccepted, gin.H{
+			"downloadId": result.ID,
+			"status":     "downloading",
+			"message":    "Download has started. You can track it with the download ID.",
+		})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Unknown action returned by the server.",
+		})
+	}
 }
 
 func (h *MusicHandler) SearchTracksByTitle(c *gin.Context) {

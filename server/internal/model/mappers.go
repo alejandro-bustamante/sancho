@@ -97,13 +97,14 @@ func TrackFromDB(t db.Track) Track {
 
 func UserFromDB(u db.User) User {
 	return User{
-		ID:        u.ID,
-		Username:  u.Username,
-		Email:     toStringPtr(u.Email),
-		CreatedAt: u.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: u.UpdatedAt.Format(time.RFC3339),
-		LastLogin: toTimePtr(u.LastLogin),
-		IsActive:  toBoolPtr(u.IsActive),
+		ID:           u.ID,
+		Username:     u.Username,
+		PasswordHash: u.PasswordHash,
+		Email:        toStringPtr(u.Email),
+		CreatedAt:    u.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:    u.UpdatedAt.Format(time.RFC3339),
+		LastLogin:    toTimePtr(u.LastLogin),
+		IsActive:     toBoolPtr(u.IsActive),
 	}
 }
 
@@ -112,7 +113,7 @@ func UserTrackFromDB(ut db.UserTrack) UserTrack {
 		UserID:       toInt64Ptr(ut.UserID),
 		TrackID:      toInt64Ptr(ut.TrackID),
 		SymlinkPath:  ut.SymlinkPath,
-		DownloadDate: ut.DownloadDate.Format(time.RFC3339),
+		DownloadDate: ut.LinkedDate.Format(time.RFC3339),
 	}
 }
 

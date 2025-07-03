@@ -1,8 +1,6 @@
 package api
 
 import (
-	"context"
-
 	mdw "github.com/alejandro-bustamante/sancho/server/internal/api/middleware"
 	"github.com/gin-gonic/gin"
 )
@@ -22,11 +20,15 @@ type LibraryHandler interface {
 	GetTracks(c *gin.Context)
 	FindTrackInLibrary(c *gin.Context)
 }
-type Indexer interface {
-	IndexFolder(ctx context.Context, rootDir string) error
+
+type UserHandler interface {
+	RegisterUser(c *gin.Context)
+	DeleteUser(c *gin.Context)
+	AuthenticateUser(c *gin.Context)
+	UpdateUser(c *gin.Context)
 }
 
-func RegisterRoutes(router *gin.Engine, p ProxyHandler, m MusicHandler, l LibraryHandler) {
+func RegisterRoutes(router *gin.Engine, p ProxyHandler, m MusicHandler, l LibraryHandler, u UserHandler) {
 	// Cors middleware
 	router.Use(mdw.CORSMiddleware())
 	router.GET("/proxy", p.ProxyCORSHandler)
@@ -42,4 +44,9 @@ func RegisterRoutes(router *gin.Engine, p ProxyHandler, m MusicHandler, l Librar
 	router.GET("/tracks", l.GetTracks)
 	router.GET("/tracks/search", l.FindTrackInLibrary)
 
+	// User endpoints (works with internal db)
+	router.POST("/users", u.RegisterUser)
+	router.DELETE("/users", u.DeleteUser)
+	router.POST("/auth", u.AuthenticateUser)
+	router.PATCH("/users/:id", u.UpdateUser)
 }
