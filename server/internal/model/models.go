@@ -96,6 +96,7 @@ type StreamripSearchResult struct {
 type TrackPreview struct {
 	Title    string `json:"title"`
 	Artist   string `json:"artist"`
+	Album    string `json:"album"`
 	Duration int    `json:"duration"`
 	Image    string `json:"image"`
 	TrackID  string `json:"track_id"`

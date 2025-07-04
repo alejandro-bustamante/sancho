@@ -59,3 +59,10 @@ func main() {
 		log.Fatalf("Could not initialize the server. Error: %v", err)
 	}
 }
+
+// TODO:
+// 1. Standardize the time format in the db. sqlite uses UTC, the backend sends local time
+// 3. Polling
+// 4. Use global var for file_path in track table
+
+// 2. Auth - seems complete

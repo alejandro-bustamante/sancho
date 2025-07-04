@@ -123,6 +123,7 @@ func MapToTrackPreviews(results []StreamripSearchResult) []TrackPreview {
 		preview := TrackPreview{
 			Title:    r.Data.Title,
 			Artist:   r.Data.Performer.Name,
+			Album:    r.Data.Album.Title,
 			Duration: r.Data.Duration,
 			Image:    r.Data.Album.Image.Small,
 			TrackID:  r.ID,
