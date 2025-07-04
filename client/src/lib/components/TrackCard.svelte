@@ -1,48 +1,51 @@
 <script lang="ts">
-	import { selectedUser, notifications } from '$lib/stores';
-	import type { Track } from '$lib/types';
+	import { selectedUser, notifications } from '$lib/stores/stores';
+	import type { Track } from '$lib/stores/types';
 
+	// Recibimos una pista como prop
 	export let track: Track;
 
+	// Función que inicia la descarga de una pista
 	async function downloadTrack() {
-		const id = 'starting_' + track.id;
+		const id = 'starting_' + track.track_id;
 
-		notifications.update((n) => [
-			...n,
-			{ id, message: `Iniciando descarga: ${track.title}`, type: 'info', show: true }
-		]);
+		// Mostramos notificación de inicio
+		notifications.update(n => [...n, {
+			id,
+			message: `Iniciando descarga: ${track.title}`,
+			type: 'info',
+			show: true
+		}]);
 
 		try {
-			const res = await fetch('http://localhost:8081/download', {
+			const res = await fetch('http://localhost:8081/downloads', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					// url: track.link,
-					title: track.title,
-					artist: track.artist.name,
-					album: track.album.title,
-					user: $selectedUser
+					id: track.track_id,
+					isrc: track.isrc,
+					user: $selectedUser,
+					quality: 2,
 				})
 			});
 
 			if (!res.ok) throw new Error(`Error ${res.status}`);
 			const data = await res.json();
 
-			notifications.update((n) => [
-				...n.filter((noti) => noti.id !== id),
+			// Reemplazamos la notificación temporal por una de éxito
+			notifications.update(n => [
+				...n.filter(noti => noti.id !== id),
 				{
 					id: data.downloadId,
-					message: `Descarga iniciada: ${data.trackInfo.title} - ${data.trackInfo.artist}`,
+					message: `${data.message}`,
 					type: 'success',
 					show: true
 				}
 			]);
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : 'Error desconocido';
-			notifications.update((n) => [
-				...n.filter((noti) => noti.id !== id),
+			notifications.update(n => [
+				...n.filter(noti => noti.id !== id),
 				{
 					id: Date.now().toString(),
 					message: `Error al iniciar la descarga: ${message}`,
@@ -54,21 +57,22 @@
 	}
 </script>
 
-<div class="mb-6 pb-6 border-b border-gray-200">
-	<h3 class="text-xl font-semibold text-blue-600 mb-2">{track.title}</h3>
-	<!-- <p class="text-sm text-gray-600">Link: {track.link}</p> -->
-	<p class="text-sm text-gray-600">Artist: {track.artist.name}</p>
-	<p class="text-sm text-gray-600">Album: {track.album.title}</p>
-	<div class="flex flex-wrap items-center mt-3">
-		<img src={track.album.cover_small} alt={track.album.title} class="rounded mr-4" />
-		<audio controls class="mt-2 w-full">
+<!-- Tarjeta que muestra información de la pista -->
+<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #ccc;">
+	<h3 style="font-size: 1.2rem; font-weight: bold; color: #2563eb;">{track.title}</h3>
+	<p style="font-size: 0.9rem; color: #666;">Artista: {track.artist}</p>
+	<p style="font-size: 0.9rem; color: #666;">Álbum: {track.album}</p>
+
+	<!-- Imagen y preview -->
+	<div style="display: flex; align-items: center; margin-top: 0.5rem;">
+		<img src={track.image} alt={track.artist} style="border-radius: 0.25rem; margin-right: 1rem;" />
+		<!-- <audio controls style="width: 100%;">
 			<source src={track.preview} type="audio/mpeg" />
-		</audio>
+		</audio> -->
 	</div>
-	<button
-		on:click={downloadTrack}
-		class="mt-3 bg-orange hover:bg-orange/80 text-white px-3 py-2 rounded text-sm transition-colors duration-300"
-	>
+
+	<!-- Botón de descarga -->
+	<button on:click={downloadTrack} style="margin-top: 0.5rem; background-color: orange; color: white; padding: 0.5rem 1rem; border-radius: 0.25rem;">
 		Descargar
 	</button>
 </div>

@@ -8,15 +8,13 @@ export interface Notification {
 }
 
 export interface Track {
-	id: string;
+	// id: string;
 	title: string;
-	link: string;
-	preview: string;
-	artist: {
-		name: string;
-	};
-	album: {
-		title: string;
-		cover_small: string;
-	};
+	artist: string;
+	album: string;
+	duration: number;
+	image: string;
+	track_id: number;
+	source: string;
+	isrc: string;
 }

@@ -74,11 +74,11 @@ func (h *UserHandler) AuthenticateUser(c *gin.Context) {
 	}
 	authenticated, err := userAuthenticated(userDB.PasswordHash, req.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Error authenticating user", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error authenticating user", "details": err.Error()})
 		return
 	}
 	if !authenticated {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect username or password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect username or password"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
