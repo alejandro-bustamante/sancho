@@ -4,5 +4,6 @@ go.sum
 server/database/dev.*
 server/.env
 server/cmd/bitrate
+server/build
 
 .env

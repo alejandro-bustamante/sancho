@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/alejandro-bustamante/sancho/server/internal/api"
 	"github.com/alejandro-bustamante/sancho/server/internal/api/controller"
@@ -15,7 +16,6 @@ import (
 )
 
 func main() {
-	// Load enviroment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file. Error: %v", err)
@@ -29,6 +29,7 @@ func main() {
 	// The goroutines implementation handle concurrency
 	// for the connection behind the scenes
 	// conn, err := sql.Open("sqlite3", "database/dev.sancho?_foreign_keys=on")
+
 	conn, err := sql.Open("sqlite3", db_path)
 	if err != nil {
 		log.Fatalf("Error abriendo la base de datos: %v", err)
@@ -39,21 +40,33 @@ func main() {
 	}
 	queries := db.New(conn)
 
-	// Initialize services and inject dependencies
+	// Inicializar servicios
 	indexerService := service.NewIndexer(queries)
 	proxyHandler := controller.NewProxyCORSHandler()
 	fileMangerService := service.NewFileManager(queries)
 	streamripService := service.NewStreamrip(indexerService, fileMangerService, queries)
 
-	// Initialize handlers and inject dependencies
+	// Inicializar handlers
 	downloadHandler := controller.NewMusicHandler(streamripService, indexerService, fileMangerService)
 	libraryHandler := controller.NewLibraryHandler(queries, indexerService)
 	userHandler := controller.NewUserHandler(queries)
 
-	// Configure the router
+	// Configurar router
 	router := gin.Default()
-	router.Static("/client", "../client")
+
 	api.RegisterRoutes(router, proxyHandler, downloadHandler, libraryHandler, userHandler)
+
+	router.Static("/_app", "./build/_app")
+
+	// Servir archivos específicos
+	router.StaticFile("/favicon.png", "./build/favicon.png")
+
+	// Servir el archivo index.html para todas las rutas que no sean API o archivos estáticos (SPA)
+	router.NoRoute(func(c *gin.Context) {
+		indexPath := filepath.Join("./build", "index.html")
+		c.File(indexPath)
+	})
+
 	log.Printf("Server running on http://localhost:%s", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Could not initialize the server. Error: %v", err)
