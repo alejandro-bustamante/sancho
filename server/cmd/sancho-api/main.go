@@ -8,29 +8,35 @@ import (
 
 	"github.com/alejandro-bustamante/sancho/server/internal/api"
 	"github.com/alejandro-bustamante/sancho/server/internal/api/controller"
+	"github.com/alejandro-bustamante/sancho/server/internal/config"
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/alejandro-bustamante/sancho/server/internal/service"
+
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	_ "github.com/mattn/go-sqlite3" // Importante: Driver de SQLite
+	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file. Error: %v", err)
+	dbPath := config.DBPath
+
+	if err := os.MkdirAll(filepath.Dir(dbPath), os.ModePerm); err != nil {
+		log.Fatalf("No se pudo crear el directorio para la base de datos: %v", err)
+	}
+	if err := runMigrations(dbPath); err != nil {
+		log.Fatalf("Error ejecutando migraciones: %v", err)
 	}
 
-	port := os.Getenv("HTTP_PORT")
-	db_path := os.Getenv("DB_PATH")
-
+	// ------------- BACKEND -------------------
 	// Initialize the db
 	// Just one connection open for the whole app
 	// The goroutines implementation handle concurrency
 	// for the connection behind the scenes
-	// conn, err := sql.Open("sqlite3", "database/dev.sancho?_foreign_keys=on")
 
-	conn, err := sql.Open("sqlite3", db_path)
+	conn, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.Fatalf("Error abriendo la base de datos: %v", err)
 	}
@@ -53,12 +59,12 @@ func main() {
 
 	// Configurar router
 	router := gin.Default()
-
 	api.RegisterRoutes(router, proxyHandler, downloadHandler, libraryHandler, userHandler)
+	// ------------------------------------------
 
-	router.Static("/_app", "./build/_app")
-
+	// ------------- FRONTEND -------------------
 	// Servir archivos específicos
+	router.Static("/_app", "./build/_app")
 	router.StaticFile("/favicon.png", "./build/favicon.png")
 
 	// Servir el archivo index.html para todas las rutas que no sean API o archivos estáticos (SPA)
@@ -66,11 +72,43 @@ func main() {
 		indexPath := filepath.Join("./build", "index.html")
 		c.File(indexPath)
 	})
+	// ------------------------------------------
 
+	port := config.HttpPort
 	log.Printf("Server running on http://localhost:%s", port)
+	// if err := router.Run(":" + port); err != nil {
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Could not initialize the server. Error: %v", err)
 	}
+}
+
+func runMigrations(dbPath string) error {
+	dbURL := "file:" + dbPath + "?cache=shared&_fk=1"
+
+	conn, err := sql.Open("sqlite3", dbURL)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	driver, err := sqlite.WithInstance(conn, &sqlite.Config{})
+	if err != nil {
+		return err
+	}
+
+	// Asume que tus archivos de migración están en ./migrations
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://migrations",
+		"sqlite3", driver)
+	if err != nil {
+		return err
+	}
+
+	// Ejecuta todas las migraciones pendientes
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+	return nil
 }
 
 // TODO:

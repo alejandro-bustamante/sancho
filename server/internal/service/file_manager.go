@@ -68,7 +68,8 @@ func (fm *FileManager) moveTrackToLibrary(ctx context.Context, track model.Track
 	// │   └── Album B
 	// │       ├── Track 1.m4a
 	// └────── └── Track 3.m4a
-	libraryRoot := os.Getenv("MAIN_LIBRARY_PATH")
+	sanchoRoot := os.Getenv("SANCHO_PATH")
+	libraryRoot := filepath.Join(sanchoRoot, "library")
 
 	artist, err := fm.queries.GetArtistByTrackID(ctx, track.ID)
 	if err != nil {
@@ -134,7 +135,7 @@ func (fm *FileManager) LinkTrackToUser(ctx context.Context, isrc, user string) (
 	}
 
 	sanchoRoot := os.Getenv("SANCHO_PATH")
-	libraryRoot := os.Getenv("MAIN_LIBRARY_PATH")
+	libraryRoot := filepath.Join(sanchoRoot, "library")
 
 	relativeTrackPath, err := filepath.Rel(libraryRoot, finalPath)
 	if err != nil {
