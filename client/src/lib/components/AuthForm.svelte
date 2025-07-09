@@ -1,28 +1,22 @@
 <script lang="ts">
 	import { notifications } from '$lib/stores/notifications';
-    import { currentUser } from '$lib/stores/auth'
+	import { currentUser } from '$lib/stores/auth';
 
 	export let mode: 'login' | 'register';
-
 	// Campos del formulario
 	let username = '';
 	let password = '';
 	let email = '';
-
 	// Acción al enviar
 	async function handleSubmit() {
 		const payload: Record<string, string> = { username, password };
 		if (mode === 'register') payload.email = email;
 
-		const res = await fetch(
-			`http://localhost:8081/${mode === 'login' ? 'auth' : 'users'}`,
-			{
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			}
-		);
-
+		const res = await fetch(`http://localhost:8081/${mode === 'login' ? 'auth' : 'users'}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload)
+		});
 		const data = await res.json();
 
 		if (!res.ok) {
@@ -30,28 +24,26 @@
 			return;
 		}
 
-        // We save the current session
-        currentUser.set(username)
+		// We save the current session
+		currentUser.set(username);
 
 		notifications.add({
 			type: 'success',
-			message: mode === 'login'
-				? 'Sesión iniciada correctamente.'
-				: 'Usuario registrado con éxito.'
+			message: mode === 'login' ? 'Sesión iniciada correctamente.' : 'Usuario registrado con éxito.'
 		});
 	}
 </script>
 
-<form class="flex flex-col gap-4" on:submit|preventDefault={handleSubmit}>
+<form class="space-y-4" on:submit|preventDefault={handleSubmit}>
 	<input
-		class="border p-2 rounded"
+		class="w-full rounded-md border border-gray-600 bg-gray-700 px-4 py-2 text-gray-200 placeholder-gray-400 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
 		placeholder="Usuario"
 		bind:value={username}
 		required
 	/>
 
 	<input
-		class="border p-2 rounded"
+		class="w-full rounded-md border border-gray-600 bg-gray-700 px-4 py-2 text-gray-200 placeholder-gray-400 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
 		placeholder="Contraseña"
 		type="password"
 		bind:value={password}
@@ -60,7 +52,7 @@
 
 	{#if mode === 'register'}
 		<input
-			class="border p-2 rounded"
+			class="w-full rounded-md border border-gray-600 bg-gray-700 px-4 py-2 text-gray-200 placeholder-gray-400 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500"
 			placeholder="Correo electrónico"
 			type="email"
 			bind:value={email}
@@ -68,7 +60,9 @@
 		/>
 	{/if}
 
-	<button class="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+	<button
+		class="w-full rounded-md bg-purple-600 px-4 py-2 font-bold text-white transition-colors hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+	>
 		{mode === 'login' ? 'Iniciar sesión' : 'Registrarse'}
 	</button>
 </form>

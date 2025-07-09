@@ -2,42 +2,94 @@
 # Etapa 1: Build Go binary
 # =========================
 FROM golang:1.24.4-alpine3.22 AS go-builder
-
-# Instala dependencias necesarias para SQLite + CGO
 RUN apk add --no-cache gcc musl-dev
-
-# Crear directorio de trabajo
-WORKDIR /app
-
-# Descargar dependencias
+WORKDIR /build
 COPY server/go.mod server/go.sum ./
 RUN go mod download
-
-# Copiar el resto del código
 COPY server ./
-
-# Compilar el binario
 RUN go build -o /bin/sancho-api ./cmd/sancho-api
+
+# =========================
+# Etapa 2: Preparar streamrip
+# =========================
+FROM python:3.12-alpine3.22 AS streamrip-builder
+RUN apk add --no-cache git gcc musl-dev libffi-dev openssl-dev curl
+
+# Instalar Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH="/root/.local/bin:$PATH"
+
+# Instalar plugin de exportación
+RUN poetry self add poetry-plugin-export
+
+# Clonar tu fork
+WORKDIR /src
+RUN git clone --branch sancho --depth 1 https://github.com/alejandro-bustamante/streamrip.git
+WORKDIR /src/streamrip
+
+# Exportar las dependencias a requirements.txt
+RUN poetry export -f requirements.txt --without-hashes --output requirements.txt
+
+# Crear un wheel del proyecto
+RUN poetry build
 
 # ============================
 # Etapa final: Imagen mínima
 # ============================
 FROM alpine:3.22
 
-# Instalar solo las dependencias de ejecución
-RUN apk add --no-cache ffmpeg libstdc++ sqlite-libs
+# Instalar Python y herramientas necesarias
+RUN apk add --no-cache \
+    ffmpeg \
+    libstdc++ \
+    sqlite-libs \
+    python3 \
+    py3-pip \
+    py3-cryptography \
+    py3-urllib3 \
+    py3-certifi \
+    py3-charset-normalizer \
+    py3-idna \
+    py3-requests \
+    ncurses \
+    ncurses-terminfo \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    openssl-dev
 
-# Directorio de trabajo dentro del contenedor
+# Crear carpeta config esperada por streamrip
+RUN mkdir -p /root/.config/streamrip
+
+# Copiar archivo config personalizado
+COPY config.toml /root/.config/streamrip/config.toml
+
+# Directorio de trabajo
 WORKDIR /app
 
-# Copiar el binario compilado
+# Copiar binario backend
 COPY --from=go-builder /bin/sancho-api /usr/local/bin/sancho-api
 
-# Copiar frontend (build sveltekit ya generado previamente)
+# Frontend build
 COPY client/build ./build
 
-# Copiar las migraciones para que el binario las ejecute
+# Migraciones
 COPY server/migrations ./migrations
 
-# Entrypoint por defecto
+# Copiar requirements.txt y wheel
+COPY --from=streamrip-builder /src/streamrip/requirements.txt /tmp/requirements.txt
+COPY --from=streamrip-builder /src/streamrip/dist/*.whl /tmp/
+
+# Instalar dependencias de streamrip usando --break-system-packages
+# (seguro en un contenedor donde controlamos el entorno)
+RUN pip install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
+
+# Instalar streamrip desde el wheel
+RUN pip install --no-cache-dir --break-system-packages /tmp/*.whl
+
+# Limpiar archivos temporales y dependencias de compilación
+RUN rm -rf /tmp/* && \
+    apk del gcc musl-dev libffi-dev openssl-dev
+
+# Entrypoint principal
 ENTRYPOINT ["sancho-api"]

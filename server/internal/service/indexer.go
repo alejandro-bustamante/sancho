@@ -12,18 +12,22 @@ import (
 	"strconv"
 	"time"
 
+	model "github.com/alejandro-bustamante/sancho/server/internal/model"
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	tag "go.senan.xyz/taglib"
 )
 
 type Indexer struct {
-	queries *db.Queries
+	queries     *db.Queries
+	fileManager *FileManager
 }
 
-func NewIndexer(queries *db.Queries) *Indexer {
+func NewIndexer(queries *db.Queries, fileManager *FileManager) *Indexer {
 	return &Indexer{
-		queries: queries,
+		queries:     queries,
+		fileManager: fileManager,
 	}
 }
 
@@ -32,16 +36,19 @@ type DeezerIDs struct {
 	AlbumID  int `json:"album_id"`
 }
 
-func (x *Indexer) IndexFolder(ctx context.Context, rootDir, user string) error {
+func (x *Indexer) IndexFolder(ctx context.Context, rootDir, user, service string, quality int) error {
+	ctx = context.Background()
 	return filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !x.isAudioFile(path) {
 			return nil
 		}
-		// Se pasan las queries que ya tiene el struct.
-		_, errIndex := x.IndexFile(ctx, info, path, user)
-		if errIndex != nil {
-			log.Printf("Error procesando %s: %v", path, errIndex)
+
+		if err := x.RegisterLocalTrack(ctx, path, user, service, quality); err != nil {
+			log.Printf("Error registrando %s: %v", path, err)
+		} else {
+			log.Printf("✓ Registrado %s", path)
 		}
+
 		return nil
 	})
 }
@@ -49,6 +56,7 @@ func (x *Indexer) IndexFolder(ctx context.Context, rootDir, user string) error {
 func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user string) (trackID int64, err error) {
 	// Get track info
 	// Tags: big hash map
+	ctx = context.Background()
 	tags, err := tag.ReadTags(path)
 	if err != nil {
 		return 0, fmt.Errorf("error reading tags: %w", err)
@@ -296,4 +304,79 @@ func (x *Indexer) IsTrackInLibrary(ctx context.Context, isrc string) (bool, erro
 
 	}
 	return existsInt == 1, nil
+}
+
+func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, service string, quality int) error {
+	ctx = context.Background()
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return fmt.Errorf("file not found: %w", err)
+	}
+
+	trackID, err := x.IndexFile(ctx, info, fullPath, user)
+	if err != nil {
+		return fmt.Errorf("indexing error: %w", err)
+	}
+
+	track, err := x.queries.GetTrackByID(ctx, trackID)
+	if err != nil {
+		return fmt.Errorf("could not fetch track after indexing: %w", err)
+	}
+
+	artist, err := x.queries.GetArtistByTrackID(ctx, trackID)
+	if err != nil {
+		return fmt.Errorf("error fetching artist: %w", err)
+	}
+
+	trackModel := model.TrackFromDB(track)
+	renamedPath, err := x.fileManager.renameTrack(ctx, trackModel, artist.Name)
+	if err != nil {
+		return fmt.Errorf("error renaming track: %w", err)
+	}
+	trackModel.FilePath = renamedPath
+
+	_, err = x.fileManager.moveTrackToLibrary(ctx, trackModel)
+	if err != nil {
+		return fmt.Errorf("error moving track to library: %w", err)
+	}
+
+	_, err = x.fileManager.LinkTrackToUser(ctx, *trackModel.ISRC, user)
+	if err != nil {
+		return fmt.Errorf("error linking track to user: %w", err)
+	}
+
+	x.saveTransferHistory(ctx, user, service, trackID, quality)
+
+	return nil
+}
+
+func (x *Indexer) saveTransferHistory(
+	ctx context.Context,
+	user, service string,
+	trackID int64,
+	quality int,
+) {
+	ctx = context.Background()
+	userData, err := x.queries.GetUserByUsername(ctx, user)
+	if err != nil {
+		log.Printf("Could not find the user %s: %v", user, err)
+		return
+	}
+	downloadID := uuid.New().String()
+	status := string(model.StatusTransfered)
+
+	params := db.InsertDownloadHistoryParams{
+		ID:          downloadID,
+		UserID:      sql.NullInt64{Int64: userData.ID, Valid: userData.ID > 0},
+		TrackID:     sql.NullInt64{Int64: trackID, Valid: trackID > 0},
+		Quality:     sql.NullInt64{Int64: int64(quality), Valid: quality >= 0},
+		Status:      sql.NullString{String: status, Valid: status != ""},
+		Service:     sql.NullString{String: service, Valid: service != ""},
+		CompletedAt: sql.NullTime{Time: time.Now(), Valid: true},
+	}
+
+	_, err = x.queries.InsertDownloadHistory(ctx, params)
+	if err != nil {
+		log.Printf("Error guardando historial de descarga: %v", err)
+	}
 }

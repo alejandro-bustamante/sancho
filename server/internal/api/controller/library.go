@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/gin-gonic/gin"
@@ -11,8 +14,10 @@ import (
 
 // The structure of the request the client has to pass us
 type LibraryIndexRequest struct {
-	Path string `json:"path" binding:"required"`
-	User string `json:"user" binding:"required"`
+	Path    string `json:"path" binding:"required"`
+	User    string `json:"user" binding:"required"`
+	Service string `json:"service" binding:"required"`
+	Quality string `json:"quality" binding:"required"`
 }
 
 type LibraryHandler struct {
@@ -30,23 +35,37 @@ func NewLibraryHandler(q *db.Queries, s Indexer) *LibraryHandler {
 func (h *LibraryHandler) IndexFolder(c *gin.Context) {
 	var req LibraryIndexRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request",
+			"details": err.Error(),
+		})
 		return
 	}
-	ctx := c.Request.Context()
 
-	go func() {
-		if err := h.indexerService.IndexFolder(ctx, req.Path, req.User); err != nil {
-			log.Printf("Error indexing the folder. Error: %v", err)
-		} else {
-			log.Printf("Indexing completed for: %s", req.Path)
-		}
-	}()
+	// Capturamos el path y usuario por si el contexto original se cancela
+	path := req.Path
+	user := req.User
+	service := req.Service
+	quality, _ := strconv.Atoi(req.Quality)
 
+	// Respondemos inmediatamente
 	c.JSON(http.StatusAccepted, gin.H{
 		"status":  "Indexing in progress",
-		"message": "The process is being executed on the background.",
+		"message": fmt.Sprintf("Indexing of %s started in background for user %s", path, user),
 	})
+
+	// Procesamos en segundo plano
+	go func() {
+		// Usamos contexto vacío para que no se cancele si el cliente desconecta
+		ctx := context.Background()
+
+		log.Printf("Indexing folder '%s' for user '%s'...", path, user)
+		if err := h.indexerService.IndexFolder(ctx, path, user, service, quality); err != nil {
+			log.Printf("[ERROR] Failed indexing folder %s for user %s: %v", path, user, err)
+		} else {
+			log.Printf("[OK] Indexing completed for folder %s (user: %s)", path, user)
+		}
+	}()
 }
 
 func (h *LibraryHandler) GetTracks(c *gin.Context) {

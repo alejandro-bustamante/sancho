@@ -19,6 +19,7 @@ type Querier interface {
 	GetArtistByDeezerID(ctx context.Context, deezerID sql.NullString) (Artist, error)
 	GetArtistByNormalizedName(ctx context.Context, normalizedName string) (Artist, error)
 	GetArtistByTrackID(ctx context.Context, trackID int64) (Artist, error)
+	GetTrackByID(ctx context.Context, id int64) (Track, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUserTrack(ctx context.Context, arg GetUserTrackParams) (UserTrack, error)
 	InsertAlbum(ctx context.Context, arg InsertAlbumParams) (Album, error)

@@ -9,9 +9,10 @@ func isDev() bool {
 }
 
 var (
-	DBPath     string
-	SanchoPath string
-	HttpPort   string
+	DBPath       string
+	SanchoPath   string
+	HttpPort     string
+	FrontendPath string
 )
 
 func init() {
@@ -19,9 +20,11 @@ func init() {
 		DBPath = os.Getenv("DB_PATH")
 		SanchoPath = os.Getenv("SANCHO_PATH")
 		HttpPort = os.Getenv("HTTP_PORT")
+		FrontendPath = os.Getenv("FRONTEND_PATH")
 	} else {
 		DBPath = "/data/database.sancho"
 		SanchoPath = "/sancho"
 		HttpPort = "8081"
+		FrontendPath = "/app/build"
 	}
 }

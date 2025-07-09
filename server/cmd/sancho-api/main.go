@@ -47,9 +47,9 @@ func main() {
 	queries := db.New(conn)
 
 	// Inicializar servicios
-	indexerService := service.NewIndexer(queries)
-	proxyHandler := controller.NewProxyCORSHandler()
 	fileMangerService := service.NewFileManager(queries)
+	indexerService := service.NewIndexer(queries, fileMangerService)
+	proxyHandler := controller.NewProxyCORSHandler()
 	streamripService := service.NewStreamrip(indexerService, fileMangerService, queries)
 
 	// Inicializar handlers
@@ -64,12 +64,15 @@ func main() {
 
 	// ------------- FRONTEND -------------------
 	// Servir archivos específicos
-	router.Static("/_app", "./build/_app")
-	router.StaticFile("/favicon.png", "./build/favicon.png")
+	frontend := config.FrontendPath
+	// router.Static("/_app", "./build/_app")
+	router.Static("/_app", filepath.Join(frontend, "_app"))
+	// router.StaticFile("/favicon.png", "./build/favicon.png")
+	router.StaticFile("/favicon.png", filepath.Join(frontend, "favicon.png"))
 
 	// Servir el archivo index.html para todas las rutas que no sean API o archivos estáticos (SPA)
 	router.NoRoute(func(c *gin.Context) {
-		indexPath := filepath.Join("./build", "index.html")
+		indexPath := filepath.Join(frontend, "index.html")
 		c.File(indexPath)
 	})
 	// ------------------------------------------
@@ -114,6 +117,5 @@ func runMigrations(dbPath string) error {
 // TODO:
 // 1. Standardize the time format in the db. sqlite uses UTC, the backend sends local time
 // 3. Polling
-// 4. Use global var for file_path in track table
 
 // 2. Auth - seems complete

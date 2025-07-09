@@ -134,6 +134,9 @@ const (
 	StatusIndexing    DownloadStatus = "indexing"
 	StatusFailed      DownloadStatus = "failed"
 	StatusCanceled    DownloadStatus = "canceled"
+	// Used to indicate a file was tranfered locally
+	// and not downloaded. Has no fail state
+	StatusTransfered DownloadStatus = "transfered"
 )
 
 // To inform the client of what took place
