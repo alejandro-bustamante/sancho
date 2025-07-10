@@ -23,7 +23,7 @@
 		isLoadingSample = true;
 
 		try {
-			const res = await fetch(`http://localhost:5400/search/${track.isrc}/sample`);
+			const res = await fetch(`http://192.168.0.21:5400/search/${track.isrc}/sample`);
 			const data = await res.json();
 			if (!res.ok || !data.sample_url) throw new Error(data.error || 'Error al obtener muestra');
 			sampleUrl = data.sample_url;
@@ -70,7 +70,7 @@
 		]);
 
 		try {
-			const res = await fetch('http://localhost:5400/downloads', {
+			const res = await fetch('http://192.168.0.21:5400/downloads', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -118,7 +118,7 @@
 
 		const interval = setInterval(async () => {
 			try {
-				const res = await fetch(`http://localhost:5400/downloads/${downloadId}/status`);
+				const res = await fetch(`http://192.168.0.21:5400/downloads/${downloadId}/status`);
 				if (!res.ok) throw new Error(`Error ${res.status}`);
 				const data = await res.json();
 				const status = data.status;
