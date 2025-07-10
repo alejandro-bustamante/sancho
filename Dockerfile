@@ -91,5 +91,7 @@ RUN pip install --no-cache-dir --break-system-packages /tmp/*.whl
 RUN rm -rf /tmp/* && \
     apk del gcc musl-dev libffi-dev openssl-dev
 
+# Documentativo, no obligatorio
+EXPOSE 5400
 # Entrypoint principal
 ENTRYPOINT ["sancho-api"]

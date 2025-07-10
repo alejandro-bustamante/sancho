@@ -24,7 +24,7 @@ func init() {
 	} else {
 		DBPath = "/data/database.sancho"
 		SanchoPath = "/sancho"
-		HttpPort = "8081"
+		HttpPort = "5400"
 		FrontendPath = "/app/build"
 	}
 }
