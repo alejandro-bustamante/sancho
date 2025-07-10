@@ -12,7 +12,7 @@
 		const payload: Record<string, string> = { username, password };
 		if (mode === 'register') payload.email = email;
 
-		const res = await fetch(`http://localhost:5400/${mode === 'login' ? 'auth' : 'users'}`, {
+		const res = await fetch(`http://192.168.0.21:5400/${mode === 'login' ? 'auth' : 'users'}`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(payload)
