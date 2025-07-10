@@ -372,7 +372,7 @@ func (x *Indexer) saveTransferHistory(
 		Quality:     sql.NullInt64{Int64: int64(quality), Valid: quality >= 0},
 		Status:      sql.NullString{String: status, Valid: status != ""},
 		Service:     sql.NullString{String: service, Valid: service != ""},
-		CompletedAt: sql.NullTime{Time: time.Now(), Valid: true},
+		CompletedAt: sql.NullTime{Time: time.Now().UTC(), Valid: true},
 	}
 
 	_, err = x.queries.InsertDownloadHistory(ctx, params)

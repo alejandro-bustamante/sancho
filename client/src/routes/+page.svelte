@@ -3,7 +3,6 @@
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
 
-	import IndexFolderForm from '$lib/components/IndexFolderForm.svelte';
 	import NotificationList from '$lib/components/NotificationList.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import TrackList from '$lib/components/TrackList.svelte';

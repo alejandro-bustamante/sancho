@@ -7,7 +7,7 @@ export SANCHO_PATH="/home/alejandro/StreamripDownloads/sancho"
 export CGO_ENABLED=1
 export FRONTEND_PATH="../client/build"
 
-if go build -o ./bin ./cmd/sancho-api; then
+if go build -o ./bin ./cmd/sancho; then
   echo "Build exitoso."
 else
   echo "Error al compilar."

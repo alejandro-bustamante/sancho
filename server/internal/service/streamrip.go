@@ -279,11 +279,11 @@ func (s *Streamrip) saveDownloadHistory(
 
 	if errorMsg != "" {
 		params.ErrorMessage = sql.NullString{String: errorMsg, Valid: true}
-		params.CompletedAt = sql.NullTime{Time: time.Now(), Valid: true}
+		params.CompletedAt = sql.NullTime{Time: time.Now().UTC(), Valid: true}
 	}
 
 	if status == "success" {
-		params.CompletedAt = sql.NullTime{Time: time.Now(), Valid: true}
+		params.CompletedAt = sql.NullTime{Time: time.Now().UTC(), Valid: true}
 		params.TrackID = sql.NullInt64{Int64: trackID, Valid: true}
 		params.Quality = sql.NullInt64{Int64: quality, Valid: true}
 	}

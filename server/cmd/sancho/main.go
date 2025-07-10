@@ -113,9 +113,3 @@ func runMigrations(dbPath string) error {
 	}
 	return nil
 }
-
-// TODO:
-// 1. Standardize the time format in the db. sqlite uses UTC, the backend sends local time
-// 3. Polling
-
-// 2. Auth - seems complete
