@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 export SANCHO_ENV="dev"
-export HTTP_PORT=8081
+export HTTP_PORT=5400
 export DB_PATH="database/database.sancho"
 export SANCHO_PATH="/home/alejandro/StreamripDownloads/sancho"
 export CGO_ENABLED=1

@@ -11,7 +11,7 @@
 		tracks.set([]); // Limpiamos resultados anteriores
 
 		try {
-			const res = await fetch(`http://localhost:8081/search?q=${encodeURIComponent(query)}`);
+			const res = await fetch(`http://localhost:5400/search?q=${encodeURIComponent(query)}`);
 			const data = await res.json();
 			tracks.set(data.results || []); // Actualizamos store con resultados
 		} catch (error) {

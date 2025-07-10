@@ -7,7 +7,7 @@ WORKDIR /build
 COPY server/go.mod server/go.sum ./
 RUN go mod download
 COPY server ./
-RUN go build -o /bin/sancho-api ./cmd/sancho-api
+RUN go build -o /bin/sancho ./cmd/sancho
 
 # =========================
 # Etapa 2: Preparar streamrip
@@ -68,7 +68,7 @@ COPY config.toml /root/.config/streamrip/config.toml
 WORKDIR /app
 
 # Copiar binario backend
-COPY --from=go-builder /bin/sancho-api /usr/local/bin/sancho-api
+COPY --from=go-builder /bin/sancho /usr/local/bin/sancho
 
 # Frontend build
 COPY client/build ./build
@@ -94,4 +94,4 @@ RUN rm -rf /tmp/* && \
 # Documentativo, no obligatorio
 EXPOSE 5400
 # Entrypoint principal
-ENTRYPOINT ["sancho-api"]
+ENTRYPOINT ["sancho"]
