@@ -1,8 +1,10 @@
 bin
 go.mod
 go.sum
-server/database/dev.*
+server/database/*.sancho*
 server/.env
 server/cmd/bitrate
+server/build
+config.toml
 
 .env

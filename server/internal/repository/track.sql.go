@@ -53,6 +53,36 @@ func (q *Queries) GetArtistByTrackID(ctx context.Context, trackID int64) (Artist
 	return i, err
 }
 
+const getTrackByID = `-- name: GetTrackByID :one
+SELECT id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bitrate, channels, file_path, file_size, isrc, composer, created_at FROM track
+WHERE id = ?1
+LIMIT 1
+`
+
+func (q *Queries) GetTrackByID(ctx context.Context, id int64) (Track, error) {
+	row := q.queryRow(ctx, q.getTrackByIDStmt, getTrackByID, id)
+	var i Track
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.NormalizedTitle,
+		&i.ArtistID,
+		&i.AlbumID,
+		&i.Duration,
+		&i.TrackNumber,
+		&i.DiscNumber,
+		&i.SampleRate,
+		&i.Bitrate,
+		&i.Channels,
+		&i.FilePath,
+		&i.FileSize,
+		&i.Isrc,
+		&i.Composer,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const insertTrack = `-- name: InsertTrack :one
 INSERT INTO track (
   title, normalized_title, artist_id, album_id, duration, track_number, disc_number,

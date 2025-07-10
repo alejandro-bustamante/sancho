@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"sync"
@@ -17,7 +18,12 @@ import (
 
 	model "github.com/alejandro-bustamante/sancho/server/internal/model"
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
+	"github.com/google/uuid"
 )
+
+type deezerTrackSampleResponse struct {
+	Preview string `json:"preview"`
+}
 
 // Code to handle download's status
 type DownloadTracker struct {
@@ -96,7 +102,7 @@ func (s *Streamrip) EnsureTrackForUser(ctx context.Context, songID, user, isrc s
 	}
 	isLinked := isLinkedInt == 1
 
-	downloadID := fmt.Sprintf("%d", time.Now().UnixNano())
+	downloadID := uuid.New().String()
 
 	if exists && isLinked {
 		return &model.DownloadResult{ID: downloadID, Action: model.ActionNoop}, nil
@@ -113,13 +119,14 @@ func (s *Streamrip) EnsureTrackForUser(ctx context.Context, songID, user, isrc s
 			return nil, fmt.Errorf("error searching for the song by ISRC in the DB: %w", err)
 		}
 
-		go s.saveDownloadHistory(ctx, downloadID, user, track.ID, quality, "success", "")
+		go s.saveDownloadHistory(ctx, downloadID, user, track.ID, quality, string(model.StatusSuccess), "")
 		return &model.DownloadResult{ID: downloadID, Action: model.ActionLinked}, nil
 	}
 
 	s.tracker.SetStatus(downloadID, model.StatusDownloading)
 
-	cmd := exec.Command("srip", "--no-db", "id", "qobuz", "track", songID)
+	// cmd := exec.Command("srip", "--no-db", "id", "qobuz", "track", songID)
+	cmd := exec.Command("rip", "--no-db", "id", "qobuz", "track", songID)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -218,13 +225,15 @@ func extractDownloadPath(output string) (string, error) {
 // SearchSong ejecuta una búsqueda usando streamrip y devuelve los resultados en una estructura Go
 func (s *Streamrip) SearchSong(source, mediaType, query string) ([]model.StreamripSearchResult, error) {
 	// Verificar que el binario existe
-	_, err := exec.LookPath("srip")
+	// _, err := exec.LookPath("srip")
+	_, err := exec.LookPath("rip")
 	if err != nil {
-		return nil, errors.New("the command srip is not available in the PATH")
+		return nil, errors.New("the command rip is not available in the PATH")
 	}
 
 	// Construir el comando
-	cmd := exec.Command("srip", "search", "--stdout", source, mediaType, query)
+	// cmd := exec.Command("srip", "search", "--stdout", source, mediaType, query)
+	cmd := exec.Command("rip", "--no-db", "search", "--stdout", source, mediaType, query)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -283,4 +292,28 @@ func (s *Streamrip) saveDownloadHistory(
 	if err != nil {
 		log.Printf("Error guardando historial de descarga: %v", err)
 	}
+}
+
+func (s *Streamrip) GetDeezerTrackSample(isrc string) (sampleUrl string, err error) {
+	url := fmt.Sprintf("https://api.deezer.com/track/isrc:%s", isrc)
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("error making request to Deezer: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("deezer API returned status %d", resp.StatusCode)
+	}
+
+	var result deezerTrackSampleResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("error decoding deezer response: %w", err)
+	}
+	return result.Preview, err
 }

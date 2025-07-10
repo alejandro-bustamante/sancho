@@ -4,7 +4,7 @@ CREATE TABLE download_history (
     user_id INTEGER,
     track_id INTEGER,
     quality INTEGER CHECK(quality IN (0, 1, 2, 3)), -- quality of the file (determined by bit depth and sample rate)
-    status TEXT CHECK(status IN ('success', 'downloading', 'indexing', 'failed', 'canceled')),
+    status TEXT CHECK(status IN ('success', 'downloading', 'indexing', 'failed', 'canceled', 'transfered')),
     service TEXT, -- qobuz, tidal, etc.
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     completed_at TIMESTAMP,

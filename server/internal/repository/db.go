@@ -51,6 +51,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getArtistByTrackIDStmt, err = db.PrepareContext(ctx, getArtistByTrackID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetArtistByTrackID: %w", err)
 	}
+	if q.getTrackByIDStmt, err = db.PrepareContext(ctx, getTrackByID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetTrackByID: %w", err)
+	}
 	if q.getUserByUsernameStmt, err = db.PrepareContext(ctx, getUserByUsername); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserByUsername: %w", err)
 	}
@@ -144,6 +147,11 @@ func (q *Queries) Close() error {
 	if q.getArtistByTrackIDStmt != nil {
 		if cerr := q.getArtistByTrackIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getArtistByTrackIDStmt: %w", cerr)
+		}
+	}
+	if q.getTrackByIDStmt != nil {
+		if cerr := q.getTrackByIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getTrackByIDStmt: %w", cerr)
 		}
 	}
 	if q.getUserByUsernameStmt != nil {
@@ -269,6 +277,7 @@ type Queries struct {
 	getArtistByDeezerIDStmt                  *sql.Stmt
 	getArtistByNormalizedNameStmt            *sql.Stmt
 	getArtistByTrackIDStmt                   *sql.Stmt
+	getTrackByIDStmt                         *sql.Stmt
 	getUserByUsernameStmt                    *sql.Stmt
 	getUserTrackStmt                         *sql.Stmt
 	insertAlbumStmt                          *sql.Stmt
@@ -299,6 +308,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getArtistByDeezerIDStmt:                  q.getArtistByDeezerIDStmt,
 		getArtistByNormalizedNameStmt:            q.getArtistByNormalizedNameStmt,
 		getArtistByTrackIDStmt:                   q.getArtistByTrackIDStmt,
+		getTrackByIDStmt:                         q.getTrackByIDStmt,
 		getUserByUsernameStmt:                    q.getUserByUsernameStmt,
 		getUserTrackStmt:                         q.getUserTrackStmt,
 		insertAlbumStmt:                          q.insertAlbumStmt,

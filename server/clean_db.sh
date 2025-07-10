@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
-DB_PATH="database/dev.sancho"
-BACKUP_DB_PATH="database/dev.sancho.backup"
+DB_PATH="database/database.sancho"
+BACKUP_DB_PATH="database/database.sancho.backup"
 
 echo "Eliminando la base de datos usada"
 rm $DB_PATH

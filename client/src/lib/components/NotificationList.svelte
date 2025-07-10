@@ -1,28 +1,29 @@
 <script lang="ts">
 	// Importamos el store que contiene las notificaciones
 	import { notifications } from '$lib/stores/stores';
-
 	// Función que elimina una notificación por su ID
 	function hideNotification(id: string) {
-		// Usamos update para modificar el store: filtramos fuera la notificación con el ID dado
-		notifications.update(n => n.filter(noti => noti.id !== id));
+		notifications.update((n) => n.filter((noti) => noti.id !== id));
 	}
 </script>
 
-<!-- Contenedor fijo donde aparecen las notificaciones -->
-<div style="position: fixed; top: 1rem; right: 1rem; z-index: 50;">
+<div class="fixed right-4 top-4 z-50 w-full max-w-xs space-y-2">
 	{#each $notifications as notification (notification.id)}
-		<!-- Renderiza cada notificación con estilos de color según el tipo -->
 		<div
-			style="margin-bottom: 0.5rem; padding: 0.75rem; border-radius: 0.5rem; color: white; display: flex; justify-content: space-between;"
-			class:bg-green-500={notification.type === 'success'}
-			class:bg-blue-500={notification.type === 'info'}
-			class:bg-red-500={notification.type === 'error'}
+			class="relative flex items-center justify-between rounded-lg p-4 pr-10 text-white shadow-lg"
+			class:bg-green-600={notification.type === 'success'}
+			class:bg-blue-600={notification.type === 'info'}
+			class:bg-red-600={notification.type === 'error'}
+			role="alert"
 		>
-			<!-- Texto del mensaje -->
-			<span>{notification.message}</span>
-			<!-- Botón para cerrar la notificación -->
-			<button on:click={() => hideNotification(notification.id)} style="margin-left: 1rem;">&times;</button>
+			<span class="text-sm font-medium">{notification.message}</span>
+			<button
+				on:click={() => hideNotification(notification.id)}
+				class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md bg-transparent p-1 text-white/70 hover:text-white/100 focus:outline-none focus:ring-2 focus:ring-white"
+				aria-label="Cerrar"
+			>
+				&times;
+			</button>
 		</div>
 	{/each}
 </div>

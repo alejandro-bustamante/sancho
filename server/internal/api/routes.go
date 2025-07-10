@@ -11,9 +11,9 @@ type ProxyHandler interface {
 type MusicHandler interface {
 	DownloadSingleTrack(c *gin.Context)
 	SearchTracksByTitle(c *gin.Context)
-	// Search(c *gin.Context)
-	SearchTracksDeezer(c *gin.Context)
+	// SearchTracksDeezer(c *gin.Context)
 	GetDownloadStatus(c *gin.Context)
+	GetTrackSample(c *gin.Context)
 }
 type LibraryHandler interface {
 	IndexFolder(c *gin.Context)
@@ -29,22 +29,19 @@ type UserHandler interface {
 }
 
 func RegisterRoutes(router *gin.Engine, p ProxyHandler, m MusicHandler, l LibraryHandler, u UserHandler) {
-	// Cors middleware
 	router.Use(mdw.CORSMiddleware())
 	router.GET("/proxy", p.ProxyCORSHandler)
 
-	// Download enpoints (works with streamrip)
 	router.POST("/downloads", m.DownloadSingleTrack)
-	router.POST("/search", m.SearchTracksByTitle)
-	router.POST("/search/deezer", m.SearchTracksDeezer)
+	router.GET("/search", m.SearchTracksByTitle)
+	// router.POST("/search/deezer", m.SearchTracksDeezer)
 	router.GET("/downloads/:id/status", m.GetDownloadStatus)
+	router.GET("/search/:isrc/sample", m.GetTrackSample)
 
-	// Library endpoints (works with internal db)
 	router.POST("/index", l.IndexFolder)
 	router.GET("/tracks", l.GetTracks)
 	router.GET("/tracks/search", l.FindTrackInLibrary)
 
-	// User endpoints (works with internal db)
 	router.POST("/users", u.RegisterUser)
 	router.DELETE("/users", u.DeleteUser)
 	router.POST("/auth", u.AuthenticateUser)

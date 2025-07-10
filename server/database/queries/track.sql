@@ -11,6 +11,11 @@ INSERT INTO track (
 )
 RETURNING *;
 
+-- name: GetTrackByID :one
+SELECT * FROM track
+WHERE id = sqlc.arg('id')
+LIMIT 1;
+
 -- name: SearchTracksByTitle :many
 SELECT * FROM track
 WHERE LOWER(title) LIKE LOWER('%' || sqlc.arg('title') || '%')
