@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/gin-gonic/gin"
@@ -17,7 +16,7 @@ type LibraryIndexRequest struct {
 	Path    string `json:"path" binding:"required"`
 	User    string `json:"user" binding:"required"`
 	Service string `json:"service" binding:"required"`
-	Quality string `json:"quality" binding:"required"`
+	Quality int    `json:"quality" binding:"required"`
 }
 
 type LibraryHandler struct {
@@ -46,7 +45,7 @@ func (h *LibraryHandler) IndexFolder(c *gin.Context) {
 	path := req.Path
 	user := req.User
 	service := req.Service
-	quality, _ := strconv.Atoi(req.Quality)
+	quality := req.Quality
 
 	// Respondemos inmediatamente
 	c.JSON(http.StatusAccepted, gin.H{

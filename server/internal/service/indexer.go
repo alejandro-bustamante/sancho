@@ -76,9 +76,25 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 
 	// Find deezer ID for artist and album
 	isrc := get(tag.ISRC)
+	if isrc == "" {
+		return 0, fmt.Errorf("could not find the isrc of the provided track: %w", err)
+	}
 	deezerIDs, err := x.getDeezerIDs(isrc)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching artist and album id from deezer: %w", err)
+	}
+
+	// Verify is the song is not downloaded already
+	// This is checked by streamrip service on download, but here for external songs
+	existsInt, err := x.queries.TrackExistsByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
+	if err != nil {
+		return 0, fmt.Errorf("error checking for the song in the database: %w", err)
+	}
+	trackExists := existsInt == 1
+	if !trackExists {
+		// The return value of -1 in the ID is only to indicate this specific failure
+		// Yes, this value probably should be sent in the error code. This is faster for now
+		return -1, fmt.Errorf("could index the provided track as it already exists in the db: %w", err)
 	}
 
 	// Check if we already have artist and album for that song
@@ -314,6 +330,10 @@ func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, servic
 	}
 
 	trackID, err := x.IndexFile(ctx, info, fullPath, user)
+	if trackID == -1 {
+		// This id is returned in case we find the songs id already int the db
+		return fmt.Errorf("song found already in the db, skiping...: %w", err)
+	}
 	if err != nil {
 		return fmt.Errorf("indexing error: %w", err)
 	}
