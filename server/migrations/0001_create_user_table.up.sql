@@ -1,6 +1,6 @@
 -- Tabla de usuario
 CREATE TABLE user (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     email TEXT UNIQUE,

@@ -1,6 +1,6 @@
 -- Tabla de track (canción)
 CREATE TABLE track (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     title TEXT NOT NULL,
     normalized_title TEXT NOT NULL,
     artist_id INTEGER,

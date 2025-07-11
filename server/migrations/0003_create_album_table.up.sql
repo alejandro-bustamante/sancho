@@ -1,6 +1,6 @@
 -- Tabla de álbum
 CREATE TABLE album (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     deezer_id TEXT UNIQUE,
     title TEXT NOT NULL,
     normalized_title TEXT NOT NULL,
