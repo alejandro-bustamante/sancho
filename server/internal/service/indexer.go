@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -34,6 +35,23 @@ func NewIndexer(queries *db.Queries, fileManager *FileManager) *Indexer {
 type DeezerIDs struct {
 	ArtistID int `json:"artist_id"`
 	AlbumID  int `json:"album_id"`
+}
+
+type TrackExistsError struct {
+	ISRC    string
+	TrackID int64
+	Message string
+}
+
+func (e *TrackExistsError) Error() string {
+	return e.Message
+}
+func NewTrackExistsError(isrc string, trackID int64) *TrackExistsError {
+	return &TrackExistsError{
+		ISRC:    isrc,
+		TrackID: trackID,
+		Message: fmt.Sprintf("track with ISRC %s already exists in database (ID: %d)", isrc, trackID),
+	}
 }
 
 func (x *Indexer) IndexFolder(ctx context.Context, rootDir, user, service string, quality int) error {
@@ -92,9 +110,11 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 	}
 	trackExists := existsInt == 1
 	if trackExists {
-		// The return value of -1 in the ID is only to indicate this specific failure
-		// Yes, this value probably should be sent in the error code. This is faster for now
-		return -1, fmt.Errorf("could not index the provided track as it already exists in the db: %w", err)
+		trackFound, err := x.queries.SearchTracksByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
+		if err != nil {
+			return 0, fmt.Errorf("Inconsistency, found a song matching ISRC and now cant find it: %w", err)
+		}
+		return trackFound.ID, NewTrackExistsError(isrc, trackFound.ID)
 	}
 
 	// Check if we already have artist and album for that song
@@ -330,9 +350,24 @@ func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, servic
 	}
 
 	trackID, err := x.IndexFile(ctx, info, fullPath, user)
-	if trackID == -1 {
+	if err != nil {
 		// This id is returned in case we find the songs id already int the db
-		return fmt.Errorf("song found already in the db, skiping...: %w", err)
+		var trackExistsErr *TrackExistsError
+		if errors.As(err, &trackExistsErr) {
+			log.Printf("song found already in the db, just linkin to user")
+
+			track, err := x.queries.GetTrackByID(ctx, trackID)
+			trackModel := model.TrackFromDB(track)
+			_, err = x.fileManager.LinkTrackToUser(ctx, *trackModel.ISRC, user)
+			if err != nil {
+				return fmt.Errorf("error linking track to user: %w", err)
+			}
+
+			x.saveTransferHistory(ctx, user, service, trackID, quality)
+
+		}
+		return fmt.Errorf("failed to index file: %w", err)
+
 	}
 	if err != nil {
 		return fmt.Errorf("indexing error: %w", err)
