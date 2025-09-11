@@ -24,9 +24,9 @@ else
     echo "Advertencia: QOBUZ_PASSWORD_OR_TOKEN no está configurado"
 fi
 
-if [ -n "$QOBUZ_APP_ID" ]; then
-    echo "Configurando App ID de Qobuz..."
-    sed -i "s|app_id = \"\"|app_id = \"$QOBUZ_APP_ID\"|g" "$CONFIG_FILE"
+if [ -n "$QOBUZ_USER_ID" ]; then
+    echo "Configurando User ID de Qobuz..."
+    sed -i "s|password_or_token = \"\"|password_or_token = \"$QOBUZ_USER_ID\"|g" "$CONFIG_FILE"
 else
     echo "Advertencia: QOBUZ_APP_ID no está configurado"
 fi

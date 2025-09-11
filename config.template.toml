@@ -34,7 +34,7 @@ email_or_userid = "5312672"
 # Enter your auth token if the above use_auth_token is set to true, else enter the md5 hash of your plaintext password
 password_or_token = ""
 # Do not change
-app_id = ""
+app_id = "798273057"
 # Do not change
 secrets = ["abb21364945c0583309667d13ca3d93a"]
 

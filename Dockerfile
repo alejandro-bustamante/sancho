@@ -89,7 +89,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Variables de entorno con valores por defecto vacíos
 ENV QOBUZ_PASSWORD_OR_TOKEN=""
-ENV QOBUZ_APP_ID=""
+ENV QOBUZ_USER_ID=""
 
 # Documentativo, no obligatorio
 EXPOSE 5400
