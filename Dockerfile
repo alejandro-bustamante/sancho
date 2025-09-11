@@ -14,22 +14,17 @@ RUN go build -o /bin/sancho ./cmd/sancho
 # =========================
 FROM python:3.12-alpine3.22 AS streamrip-builder
 RUN apk add --no-cache git gcc musl-dev libffi-dev openssl-dev curl
-
 # Instalar Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="/root/.local/bin:$PATH"
-
 # Instalar plugin de exportación
 RUN poetry self add poetry-plugin-export
-
 # Clonar tu fork
 WORKDIR /src
 RUN git clone --branch sancho --depth 1 https://github.com/alejandro-bustamante/streamrip.git
 WORKDIR /src/streamrip
-
 # Exportar las dependencias a requirements.txt
 RUN poetry export -f requirements.txt --without-hashes --output requirements.txt
-
 # Crear un wheel del proyecto
 RUN poetry build
 
@@ -61,8 +56,8 @@ RUN apk add --no-cache \
 # Crear carpeta config esperada por streamrip
 RUN mkdir -p /root/.config/streamrip
 
-# Copiar archivo config personalizado
-COPY config.toml /root/.config/streamrip/config.toml
+# Copiar template de configuración (sin tokens)
+COPY config.template.toml /root/.config/streamrip/config.template.toml
 
 # Directorio de trabajo
 WORKDIR /app
@@ -80,18 +75,24 @@ COPY server/migrations ./migrations
 COPY --from=streamrip-builder /src/streamrip/requirements.txt /tmp/requirements.txt
 COPY --from=streamrip-builder /src/streamrip/dist/*.whl /tmp/
 
-# Instalar dependencias de streamrip usando --break-system-packages
-# (seguro en un contenedor donde controlamos el entorno)
+# Instalar dependencias de streamrip
 RUN pip install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
-
-# Instalar streamrip desde el wheel
 RUN pip install --no-cache-dir --break-system-packages /tmp/*.whl
 
 # Limpiar archivos temporales y dependencias de compilación
 RUN rm -rf /tmp/* && \
     apk del gcc musl-dev libffi-dev openssl-dev
 
+# Copiar script de entrada
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Variables de entorno con valores por defecto vacíos
+ENV QOBUZ_PASSWORD_OR_TOKEN=""
+ENV QOBUZ_USER_ID=""
+
 # Documentativo, no obligatorio
 EXPOSE 5400
-# Entrypoint principal
-ENTRYPOINT ["sancho"]
+
+# Usar el script de entrada
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

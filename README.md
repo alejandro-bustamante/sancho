@@ -36,6 +36,8 @@ docker run -d -p 5400:5400 \
   --name=sancho \
   --volume /folder/to/config:/data \
   --volume /folder/to/libraries:/sancho \
+  --env QOBUZ_PASSWORD_OR_TOKEN="your_qobuz_token" \
+  --env QOBUZ_USER_ID="qobuz_app_id" \
   --restart=unless-stopped \
   alebdc/sancho:latest
 ```
