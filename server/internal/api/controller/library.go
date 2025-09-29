@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/gin-gonic/gin"
@@ -22,12 +23,14 @@ type LibraryIndexRequest struct {
 type LibraryHandler struct {
 	queries        *db.Queries
 	indexerService Indexer
+	fileManager    FileManager
 }
 
-func NewLibraryHandler(q *db.Queries, s Indexer) *LibraryHandler {
+func NewLibraryHandler(q *db.Queries, s Indexer, f FileManager) *LibraryHandler {
 	return &LibraryHandler{
 		queries:        q,
 		indexerService: s,
+		fileManager:    f,
 	}
 }
 
@@ -90,4 +93,25 @@ func (h *LibraryHandler) FindTrackInLibrary(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, results)
+}
+
+func (h *LibraryHandler) DeleteTrackFromLibrary(c *gin.Context) {
+	username := c.Param("username")
+	trackIDStr := c.Param("trackId")
+
+	trackID, err := strconv.ParseInt(trackIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": " invalid song ID"})
+		return
+	}
+
+	ctx := context.Background()
+	err = h.fileManager.DeleteTrackForUser(ctx, username, trackID)
+	if err != nil {
+		log.Printf("Error al eliminar la canción: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar la canción", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Canción eliminada de la librería correctamente"})
 }

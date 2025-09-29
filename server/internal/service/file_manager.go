@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,11 +15,15 @@ import (
 )
 
 type FileManager struct {
+	db      *sql.DB
 	queries *db.Queries
 }
 
-func NewFileManager(queries *db.Queries) *FileManager {
-	return &FileManager{queries: queries}
+func NewFileManager(db *sql.DB, queries *db.Queries) *FileManager {
+	return &FileManager{
+		db:      db,
+		queries: queries,
+	}
 }
 
 func (fm *FileManager) renameTrack(ctx context.Context, track model.Track, artistName string) (string, error) {
@@ -182,4 +187,112 @@ func sanitizeFilename(name string) string {
 	// Chars known to cause issues
 	invalidChars := regexp.MustCompile(`[<>:"/\\|?*]`)
 	return invalidChars.ReplaceAllString(name, "")
+}
+
+func (fm *FileManager) DeleteTrackForUser(ctx context.Context, username string, trackID int64) error {
+	ctx = context.Background()
+	user, err := fm.queries.GetUserByUsername(ctx, username)
+	if err != nil {
+		return fmt.Errorf("error finding user '%s': %w", username, err)
+	}
+
+	// Begin a new database transaction
+	tx, err := fm.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Create a new querier that operates within the transaction
+	// Use qtx for any operation that has be done in this transaction
+	qtx := fm.queries.WithTx(tx)
+
+	track, err := qtx.GetTrackByID(ctx, trackID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("track with ID %d does not exist", trackID)
+		}
+		return fmt.Errorf("error finding track: %w", err)
+	}
+
+	// Get the user-track relationship to find the symlink details
+	// Check if the song really exists within the user's library
+	_, err = qtx.GetUserTrack(ctx, db.GetUserTrackParams{
+		UserID:  sql.NullInt64{Int64: user.ID, Valid: true},
+		TrackID: sql.NullInt64{Int64: trackID, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("user does not have this track in their library: %w", err)
+	}
+
+	// --- Filesystem Operations ---
+
+	// 1. Remove the symlink from the user's personal library folder
+	// Find the full path of the symlink
+	sanchoRoot := config.SanchoPath
+	userLibraryDir := filepath.Join(sanchoRoot, fmt.Sprintf("%s_library", user.Username))
+	globalLibraryDir := filepath.Join(sanchoRoot, "library")
+
+	relativeTrackPath, err := filepath.Rel(globalLibraryDir, track.FilePath)
+	if err != nil {
+		return fmt.Errorf("error calculating relative path: %w", err)
+	}
+	symlinkPath := filepath.Join(userLibraryDir, relativeTrackPath)
+
+	if err := os.Remove(symlinkPath); err != nil {
+		// Log as a warning because the DB state is more critical
+		log.Printf("Warning: could not remove symlink %s: %v", symlinkPath, err)
+	}
+
+	// --- Database Operations ---
+
+	// 2. Delete the entry from the user_track table
+	err = qtx.DeleteUserTrack(ctx, db.DeleteUserTrackParams{
+		UserID:  sql.NullInt64{Int64: user.ID, Valid: true},
+		TrackID: sql.NullInt64{Int64: trackID, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("error deleting user-track relationship: %w", err)
+	}
+
+	// 3. Check if any other users have the same track
+	count, err := qtx.CountUsersForTrack(ctx, sql.NullInt64{Int64: trackID, Valid: true})
+	if err != nil {
+		return fmt.Errorf("error counting users for track: %w", err)
+	}
+
+	// 4. If no one else has the track, remove the physical file and database records
+	if count == 0 {
+		log.Printf("No other user has the track '%s'. Proceeding with deletion from the global library.", track.Title)
+
+		// Remove the physical audio file
+		if err := os.Remove(track.FilePath); err != nil {
+			log.Printf("Warning: could not remove physical file %s: %v", track.FilePath, err)
+		}
+
+		// Delete the track from the 'track' table
+		if err := qtx.DeleteTrack(ctx, track.ID); err != nil {
+			return fmt.Errorf("error deleting track from database: %w", err)
+		}
+
+		// Clean up orphaned album and artist records
+		if track.AlbumID.Valid {
+			albumTracks, _ := qtx.CountTracksInAlbum(ctx, track.AlbumID)
+			if albumTracks == 0 {
+				log.Printf("Album ID %d has no tracks left. Deleting...", track.AlbumID.Int64)
+				qtx.DeleteAlbum(ctx, track.AlbumID.Int64)
+			}
+		}
+		if track.ArtistID.Valid {
+			artistAlbums, _ := qtx.CountAlbumsByArtist(ctx, track.ArtistID.Int64)
+			// For a more robust check, you could also count remaining tracks for the artist
+			if artistAlbums == 0 {
+				log.Printf("Artist ID %d has no albums left. Deleting...", track.ArtistID.Int64)
+				qtx.DeleteArtist(ctx, track.ArtistID.Int64)
+			}
+		}
+	}
+
+	// If all operations were successful, commit the transaction
+	return tx.Commit()
 }

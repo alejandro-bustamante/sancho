@@ -33,6 +33,27 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.artistExistsByDeezerIDStmt, err = db.PrepareContext(ctx, artistExistsByDeezerID); err != nil {
 		return nil, fmt.Errorf("error preparing query ArtistExistsByDeezerID: %w", err)
 	}
+	if q.countAlbumsByArtistStmt, err = db.PrepareContext(ctx, countAlbumsByArtist); err != nil {
+		return nil, fmt.Errorf("error preparing query CountAlbumsByArtist: %w", err)
+	}
+	if q.countTracksInAlbumStmt, err = db.PrepareContext(ctx, countTracksInAlbum); err != nil {
+		return nil, fmt.Errorf("error preparing query CountTracksInAlbum: %w", err)
+	}
+	if q.countUsersForTrackStmt, err = db.PrepareContext(ctx, countUsersForTrack); err != nil {
+		return nil, fmt.Errorf("error preparing query CountUsersForTrack: %w", err)
+	}
+	if q.deleteAlbumStmt, err = db.PrepareContext(ctx, deleteAlbum); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteAlbum: %w", err)
+	}
+	if q.deleteArtistStmt, err = db.PrepareContext(ctx, deleteArtist); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteArtist: %w", err)
+	}
+	if q.deleteTrackStmt, err = db.PrepareContext(ctx, deleteTrack); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteTrack: %w", err)
+	}
+	if q.deleteUserTrackStmt, err = db.PrepareContext(ctx, deleteUserTrack); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteUserTrack: %w", err)
+	}
 	if q.getAlbumByDeezerIDStmt, err = db.PrepareContext(ctx, getAlbumByDeezerID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlbumByDeezerID: %w", err)
 	}
@@ -117,6 +138,41 @@ func (q *Queries) Close() error {
 	if q.artistExistsByDeezerIDStmt != nil {
 		if cerr := q.artistExistsByDeezerIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing artistExistsByDeezerIDStmt: %w", cerr)
+		}
+	}
+	if q.countAlbumsByArtistStmt != nil {
+		if cerr := q.countAlbumsByArtistStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countAlbumsByArtistStmt: %w", cerr)
+		}
+	}
+	if q.countTracksInAlbumStmt != nil {
+		if cerr := q.countTracksInAlbumStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countTracksInAlbumStmt: %w", cerr)
+		}
+	}
+	if q.countUsersForTrackStmt != nil {
+		if cerr := q.countUsersForTrackStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countUsersForTrackStmt: %w", cerr)
+		}
+	}
+	if q.deleteAlbumStmt != nil {
+		if cerr := q.deleteAlbumStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteAlbumStmt: %w", cerr)
+		}
+	}
+	if q.deleteArtistStmt != nil {
+		if cerr := q.deleteArtistStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteArtistStmt: %w", cerr)
+		}
+	}
+	if q.deleteTrackStmt != nil {
+		if cerr := q.deleteTrackStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteTrackStmt: %w", cerr)
+		}
+	}
+	if q.deleteUserTrackStmt != nil {
+		if cerr := q.deleteUserTrackStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteUserTrackStmt: %w", cerr)
 		}
 	}
 	if q.getAlbumByDeezerIDStmt != nil {
@@ -271,6 +327,13 @@ type Queries struct {
 	addTrackToUserStmt                       *sql.Stmt
 	albumExistsByDeezerIDStmt                *sql.Stmt
 	artistExistsByDeezerIDStmt               *sql.Stmt
+	countAlbumsByArtistStmt                  *sql.Stmt
+	countTracksInAlbumStmt                   *sql.Stmt
+	countUsersForTrackStmt                   *sql.Stmt
+	deleteAlbumStmt                          *sql.Stmt
+	deleteArtistStmt                         *sql.Stmt
+	deleteTrackStmt                          *sql.Stmt
+	deleteUserTrackStmt                      *sql.Stmt
 	getAlbumByDeezerIDStmt                   *sql.Stmt
 	getAlbumByNormalizedTitleAndArtistStmt   *sql.Stmt
 	getAlbumByTrackIDStmt                    *sql.Stmt
@@ -302,6 +365,13 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		addTrackToUserStmt:                       q.addTrackToUserStmt,
 		albumExistsByDeezerIDStmt:                q.albumExistsByDeezerIDStmt,
 		artistExistsByDeezerIDStmt:               q.artistExistsByDeezerIDStmt,
+		countAlbumsByArtistStmt:                  q.countAlbumsByArtistStmt,
+		countTracksInAlbumStmt:                   q.countTracksInAlbumStmt,
+		countUsersForTrackStmt:                   q.countUsersForTrackStmt,
+		deleteAlbumStmt:                          q.deleteAlbumStmt,
+		deleteArtistStmt:                         q.deleteArtistStmt,
+		deleteTrackStmt:                          q.deleteTrackStmt,
+		deleteUserTrackStmt:                      q.deleteUserTrackStmt,
 		getAlbumByDeezerIDStmt:                   q.getAlbumByDeezerIDStmt,
 		getAlbumByNormalizedTitleAndArtistStmt:   q.getAlbumByNormalizedTitleAndArtistStmt,
 		getAlbumByTrackIDStmt:                    q.getAlbumByTrackIDStmt,

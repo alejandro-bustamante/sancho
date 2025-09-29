@@ -15,3 +15,10 @@ SELECT EXISTS (
   WHERE u.username = sqlc.arg('username') AND t.isrc = sqlc.arg('isrc')
 );
 
+-- name: DeleteUserTrack :exec
+DELETE FROM user_track
+WHERE user_id = sqlc.arg('user_id') AND track_id = sqlc.arg('track_id');
+
+-- name: CountUsersForTrack :one
+SELECT COUNT(*) FROM user_track
+WHERE track_id = sqlc.arg('track_id');

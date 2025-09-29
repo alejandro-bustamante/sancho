@@ -10,6 +10,16 @@ import (
 	"database/sql"
 )
 
+const deleteTrack = `-- name: DeleteTrack :exec
+DELETE FROM track
+WHERE id = ?1
+`
+
+func (q *Queries) DeleteTrack(ctx context.Context, id int64) error {
+	_, err := q.exec(ctx, q.deleteTrackStmt, deleteTrack, id)
+	return err
+}
+
 const getAlbumByTrackID = `-- name: GetAlbumByTrackID :one
 SELECT album.id, album.deezer_id, album.title, album.normalized_title, album.artist_id, album.release_date, album.album_art_path, album.genre, album.total_tracks, album.created_at FROM track
 JOIN album ON track.album_id = album.id

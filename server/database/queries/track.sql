@@ -49,3 +49,6 @@ UPDATE track
 SET file_path = sqlc.arg('file_path')
 WHERE id = sqlc.arg('track_id');
 
+-- name: DeleteTrack :exec
+DELETE FROM track
+WHERE id = sqlc.arg('id');

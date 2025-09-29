@@ -19,6 +19,7 @@ type LibraryHandler interface {
 	IndexFolder(c *gin.Context)
 	GetTracks(c *gin.Context)
 	FindTrackInLibrary(c *gin.Context)
+	DeleteTrackFromLibrary(c *gin.Context)
 }
 
 type UserHandler interface {
@@ -41,6 +42,7 @@ func RegisterRoutes(router *gin.Engine, p ProxyHandler, m MusicHandler, l Librar
 	router.POST("/index", l.IndexFolder)
 	router.GET("/tracks", l.GetTracks)
 	router.GET("/tracks/search", l.FindTrackInLibrary)
+	router.DELETE("/users/:username/tracks/:trackId", l.DeleteTrackFromLibrary)
 
 	router.POST("/users", u.RegisterUser)
 	router.DELETE("/users", u.DeleteUser)

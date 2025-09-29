@@ -108,7 +108,7 @@ func (s *Streamrip) EnsureTrackForUser(ctx context.Context, songID, user, isrc s
 		return &model.DownloadResult{ID: downloadID, Action: model.ActionNoop}, nil
 	} else if exists { // Just get the track info from the db and make the symlink to the apropiate user
 		// LinkTrackToUser creates the record for the symlink in the db
-		_, err := s.fileManager.LinkTrackToUser(ctx, isrc, user)
+		_, err := s.fileManager.LinkTrackToUser(ctx, user, isrc)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +180,7 @@ func (s *Streamrip) EnsureTrackForUser(ctx context.Context, songID, user, isrc s
 			return
 		}
 
-		_, err = s.fileManager.LinkTrackToUser(ctx, isrc, user)
+		_, err = s.fileManager.LinkTrackToUser(ctx, user, isrc)
 		if err != nil {
 			errMsg := fmt.Sprintf("symlink error: %v", err)
 			s.tracker.SetError(downloadID, errMsg)

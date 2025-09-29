@@ -13,6 +13,13 @@ type Querier interface {
 	AddTrackToUser(ctx context.Context, arg AddTrackToUserParams) error
 	AlbumExistsByDeezerID(ctx context.Context, deezerID sql.NullString) (int64, error)
 	ArtistExistsByDeezerID(ctx context.Context, deezerID sql.NullString) (int64, error)
+	CountAlbumsByArtist(ctx context.Context, artistID int64) (int64, error)
+	CountTracksInAlbum(ctx context.Context, albumID sql.NullInt64) (int64, error)
+	CountUsersForTrack(ctx context.Context, trackID sql.NullInt64) (int64, error)
+	DeleteAlbum(ctx context.Context, id int64) error
+	DeleteArtist(ctx context.Context, id int64) error
+	DeleteTrack(ctx context.Context, id int64) error
+	DeleteUserTrack(ctx context.Context, arg DeleteUserTrackParams) error
 	GetAlbumByDeezerID(ctx context.Context, deezerID sql.NullString) (Album, error)
 	GetAlbumByNormalizedTitleAndArtist(ctx context.Context, arg GetAlbumByNormalizedTitleAndArtistParams) (Album, error)
 	GetAlbumByTrackID(ctx context.Context, trackID int64) (Album, error)

@@ -24,3 +24,11 @@ SELECT EXISTS (
 SELECT * FROM album
 WHERE deezer_id = sqlc.arg('deezer_id')
 LIMIT 1;
+
+-- name: CountTracksInAlbum :one
+SELECT COUNT(*) FROM track
+WHERE album_id = sqlc.arg('album_id');
+
+-- name: DeleteAlbum :exec
+DELETE FROM album
+WHERE id = sqlc.arg('id');

@@ -23,6 +23,28 @@ func (q *Queries) ArtistExistsByDeezerID(ctx context.Context, deezerID sql.NullS
 	return column_1, err
 }
 
+const countAlbumsByArtist = `-- name: CountAlbumsByArtist :one
+SELECT COUNT(*) FROM album
+WHERE artist_id = ?1
+`
+
+func (q *Queries) CountAlbumsByArtist(ctx context.Context, artistID int64) (int64, error) {
+	row := q.queryRow(ctx, q.countAlbumsByArtistStmt, countAlbumsByArtist, artistID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteArtist = `-- name: DeleteArtist :exec
+DELETE FROM artist
+WHERE id = ?1
+`
+
+func (q *Queries) DeleteArtist(ctx context.Context, id int64) error {
+	_, err := q.exec(ctx, q.deleteArtistStmt, deleteArtist, id)
+	return err
+}
+
 const getArtistByDeezerID = `-- name: GetArtistByDeezerID :one
 SELECT id, deezer_id, name, normalized_name, created_at FROM artist
 WHERE deezer_id = ?1

@@ -26,6 +26,33 @@ func (q *Queries) AddTrackToUser(ctx context.Context, arg AddTrackToUserParams) 
 	return err
 }
 
+const countUsersForTrack = `-- name: CountUsersForTrack :one
+SELECT COUNT(*) FROM user_track
+WHERE track_id = ?1
+`
+
+func (q *Queries) CountUsersForTrack(ctx context.Context, trackID sql.NullInt64) (int64, error) {
+	row := q.queryRow(ctx, q.countUsersForTrackStmt, countUsersForTrack, trackID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteUserTrack = `-- name: DeleteUserTrack :exec
+DELETE FROM user_track
+WHERE user_id = ?1 AND track_id = ?2
+`
+
+type DeleteUserTrackParams struct {
+	UserID  sql.NullInt64 `json:"user_id"`
+	TrackID sql.NullInt64 `json:"track_id"`
+}
+
+func (q *Queries) DeleteUserTrack(ctx context.Context, arg DeleteUserTrackParams) error {
+	_, err := q.exec(ctx, q.deleteUserTrackStmt, deleteUserTrack, arg.UserID, arg.TrackID)
+	return err
+}
+
 const getUserTrack = `-- name: GetUserTrack :one
 SELECT user_id, track_id, symlink_path, linked_date FROM user_track
 WHERE user_id = ?1 AND track_id = ?2
