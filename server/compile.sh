@@ -14,4 +14,4 @@ else
   exit 1
 fi
 
-./bin/sancho-api
+./bin/sancho

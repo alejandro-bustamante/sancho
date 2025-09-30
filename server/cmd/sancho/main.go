@@ -71,10 +71,10 @@ func main() {
 	router.StaticFile("/favicon.ico", filepath.Join(frontend, "favicon.ico"))
 
 	// Servir el archivo index.html para todas las rutas que no sean API o archivos estáticos (SPA)
-	// router.NoRoute(func(c *gin.Context) {
-	// 	indexPath := filepath.Join(frontend, "index.html")
-	// 	c.File(indexPath)
-	// })
+	router.NoRoute(func(c *gin.Context) {
+		indexPath := filepath.Join(frontend, "index.html")
+		c.File(indexPath)
+	})
 	// ------------------------------------------
 
 	port := config.HttpPort
