@@ -102,6 +102,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listTracksByDateStmt, err = db.PrepareContext(ctx, listTracksByDate); err != nil {
 		return nil, fmt.Errorf("error preparing query ListTracksByDate: %w", err)
 	}
+	if q.listTracksByUsernameStmt, err = db.PrepareContext(ctx, listTracksByUsername); err != nil {
+		return nil, fmt.Errorf("error preparing query ListTracksByUsername: %w", err)
+	}
 	if q.searchTracksByISRCStmt, err = db.PrepareContext(ctx, searchTracksByISRC); err != nil {
 		return nil, fmt.Errorf("error preparing query SearchTracksByISRC: %w", err)
 	}
@@ -255,6 +258,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listTracksByDateStmt: %w", cerr)
 		}
 	}
+	if q.listTracksByUsernameStmt != nil {
+		if cerr := q.listTracksByUsernameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listTracksByUsernameStmt: %w", cerr)
+		}
+	}
 	if q.searchTracksByISRCStmt != nil {
 		if cerr := q.searchTracksByISRCStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing searchTracksByISRCStmt: %w", cerr)
@@ -350,6 +358,7 @@ type Queries struct {
 	insertUserStmt                           *sql.Stmt
 	isTrackLinkedToUserByUsernameAndISRCStmt *sql.Stmt
 	listTracksByDateStmt                     *sql.Stmt
+	listTracksByUsernameStmt                 *sql.Stmt
 	searchTracksByISRCStmt                   *sql.Stmt
 	searchTracksByTitleStmt                  *sql.Stmt
 	trackExistsByISRCStmt                    *sql.Stmt
@@ -388,6 +397,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		insertUserStmt:                           q.insertUserStmt,
 		isTrackLinkedToUserByUsernameAndISRCStmt: q.isTrackLinkedToUserByUsernameAndISRCStmt,
 		listTracksByDateStmt:                     q.listTracksByDateStmt,
+		listTracksByUsernameStmt:                 q.listTracksByUsernameStmt,
 		searchTracksByISRCStmt:                   q.searchTracksByISRCStmt,
 		searchTracksByTitleStmt:                  q.searchTracksByTitleStmt,
 		trackExistsByISRCStmt:                    q.trackExistsByISRCStmt,

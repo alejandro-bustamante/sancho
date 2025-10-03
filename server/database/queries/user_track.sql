@@ -22,3 +22,18 @@ WHERE user_id = sqlc.arg('user_id') AND track_id = sqlc.arg('track_id');
 -- name: CountUsersForTrack :one
 SELECT COUNT(*) FROM user_track
 WHERE track_id = sqlc.arg('track_id');
+
+-- name: ListTracksByUsername :many
+SELECT
+  t.id,
+  t.title,
+  t.duration,
+  art.name AS artist,
+  alb.title AS album
+FROM track AS t
+JOIN user_track AS ut ON t.id = ut.track_id
+JOIN "user" AS u ON ut.user_id = u.id
+LEFT JOIN artist AS art ON t.artist_id = art.id
+LEFT JOIN album AS alb ON t.album_id = alb.id
+WHERE u.username = ?
+ORDER BY art.name, alb.title, t.track_number;

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
@@ -77,6 +78,50 @@ func (h *LibraryHandler) GetTracks(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, tracks)
+}
+
+func (h *LibraryHandler) GetUserTracks(c *gin.Context) {
+	username := c.Param("username")
+
+	tracks, err := h.queries.ListTracksByUsername(c.Request.Context(), username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error getting user tracks"})
+		return
+	}
+
+	if tracks == nil {
+		tracks = []db.ListTracksByUsernameRow{}
+	}
+
+	c.JSON(http.StatusOK, tracks)
+}
+
+func (h *LibraryHandler) StreamTrack(c *gin.Context) {
+	trackIDStr := c.Param("trackId")
+	trackID, err := strconv.ParseInt(trackIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid track ID"})
+		return
+	}
+
+	track, err := h.queries.GetTrackByID(c.Request.Context(), trackID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "track not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get track"})
+		return
+	}
+
+	if _, err := os.Stat(track.FilePath); os.IsNotExist(err) {
+		log.Printf("File not found for track %d: %s", trackID, track.FilePath)
+		c.JSON(http.StatusNotFound, gin.H{"error": "audio file not found"})
+		return
+	}
+
+	// Gin maneja Content-Type, Content-Length y peticiones de rango (seeking).
+	c.File(track.FilePath)
 }
 
 func (h *LibraryHandler) FindTrackInLibrary(c *gin.Context) {
