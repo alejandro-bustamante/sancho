@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { API_IP } from '$lib/config';
+
 	// Importamos los stores que manejan la búsqueda y estado general
 	import { trackQuery, selectedUser, tracks, isLoading, notifications } from '$lib/stores/stores';
 
@@ -11,7 +13,9 @@
 		tracks.set([]); // Limpiamos resultados anteriores
 
 		try {
-			const res = await fetch(`http://192.168.0.21:5400/search?q=${encodeURIComponent(query)}`);
+			let api = `${API_IP}/search?q=${encodeURIComponent(query)}`;
+			// const res = await fetch(`${API_IP}/search?q=${encodeURIComponent(query)}`);
+			const res = await fetch(api);
 			const data = await res.json();
 			tracks.set(data.results || []); // Actualizamos store con resultados
 		} catch (error) {

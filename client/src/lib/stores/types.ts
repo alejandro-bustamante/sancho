@@ -18,3 +18,11 @@ export interface Track {
 	source: string;
 	isrc: string;
 }
+
+export interface UserLibraryTrack {
+	id: number;
+	title: string;
+	duration: { Int64: number; Valid: boolean };
+	artist: { String: string; Valid: boolean };
+	album: { String: string; Valid: boolean };
+}
