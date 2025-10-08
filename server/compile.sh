@@ -2,8 +2,9 @@
 
 export SANCHO_ENV="dev"
 export HTTP_PORT=5400
-export DB_PATH="/home/alejandro/nvme/Repositorios/Developer/test_sancho/sancho_db/database.sancho"
-export SANCHO_PATH="/home/alejandro/nvme/Repositorios/Developer/test_sancho/sancho_test"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+export DB_PATH="$REPO_ROOT/test/test_env/sancho_test.db"
+export SANCHO_PATH="$REPO_ROOT/test/test_env/"
 export CGO_ENABLED=1
 export FRONTEND_PATH="../client/build"
 

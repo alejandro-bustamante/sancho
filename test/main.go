@@ -391,7 +391,11 @@ func populateDatabase(db *sql.DB, testData *TestData) error {
 			for _, track := range album.Tracks {
 				// Construir ruta del archivo
 				fileName := fmt.Sprintf("%02d. %s - %s.flac", track.TrackNumber, track.Title, artist.Name)
-				filePath := filepath.Join("/sancho/library", artist.Name, album.Title, fileName)
+
+				// Find the executable path to put the full path in the test database
+				executable, _ := os.Executable()
+				testDir := filepath.Dir(executable)
+				filePath := filepath.Join(testDir, "/test_env/library", artist.Name, album.Title, fileName)
 
 				// Insertar canción
 				trackResult, err := tx.Exec(`
