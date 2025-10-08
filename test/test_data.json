@@ -1,0 +1,186 @@
+{
+  "users": [
+    {
+      "username": "alejandro",
+      "email": "alejandro@test.com",
+      "password": "password123",
+      "tracks": [
+        "USUM71703692",
+        "DEA621700390",
+        "BRA340800123",
+        "GBAYE0601477",
+        "ESPC81400001"
+      ]
+    },
+    {
+      "username": "maria",
+      "email": "maria@test.com",
+      "password": "password123",
+      "tracks": ["USUM71703692", "GBAYE0601477", "BRA340800123", "FRXXX1234567"]
+    },
+    {
+      "username": "carlos",
+      "email": "carlos@test.com",
+      "password": "password123",
+      "tracks": ["DEA621700390", "DEUM71500123", "ESPC81400001", "BRBA61800456"]
+    }
+  ],
+  "artists": [
+    {
+      "name": "Daft Punk",
+      "deezer_id": "27",
+      "albums": [
+        {
+          "title": "Random Access Memories",
+          "release_date": "2013-05-17",
+          "genre": "Electronic",
+          "deezer_id": "6575789",
+          "tracks": [
+            {
+              "title": "Get Lucky (feat. Pharrell Williams)",
+              "duration": 369000,
+              "track_number": 8,
+              "isrc": "USUM71703692",
+              "composer": "Thomas Bangalter, Guy-Manuel de Homem-Christo"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Kraftwerk",
+      "deezer_id": "524",
+      "albums": [
+        {
+          "title": "Die Mensch-Maschine",
+          "release_date": "1978-05-01",
+          "genre": "Electronic",
+          "deezer_id": "302127",
+          "tracks": [
+            {
+              "title": "Das Model",
+              "duration": 218000,
+              "track_number": 5,
+              "isrc": "DEA621700390",
+              "composer": "Ralf Hütter, Karl Bartos"
+            }
+          ]
+        },
+        {
+          "title": "Trans Europa Express",
+          "release_date": "1977-03-01",
+          "genre": "Electronic, Krautrock",
+          "deezer_id": "302128",
+          "tracks": [
+            {
+              "title": "Trans Europa Express",
+              "duration": 385000,
+              "track_number": 2,
+              "isrc": "DEUM71500123",
+              "composer": "Ralf Hütter, Florian Schneider"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Caetano Veloso",
+      "deezer_id": "5290",
+      "albums": [
+        {
+          "title": "Transa",
+          "release_date": "1972-01-01",
+          "genre": "MPB, Tropicália",
+          "deezer_id": "12345678",
+          "tracks": [
+            {
+              "title": "Você Não Entende Nada",
+              "duration": 245000,
+              "track_number": 3,
+              "isrc": "BRA340800123",
+              "composer": "Caetano Veloso"
+            }
+          ]
+        },
+        {
+          "title": "Abraçaço",
+          "release_date": "2012-08-07",
+          "genre": "MPB",
+          "deezer_id": "12345679",
+          "tracks": [
+            {
+              "title": "Um Comunista",
+              "duration": 198000,
+              "track_number": 4,
+              "isrc": "BRBA61800456",
+              "composer": "Caetano Veloso"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Adele",
+      "deezer_id": "75491",
+      "albums": [
+        {
+          "title": "21",
+          "release_date": "2011-01-24",
+          "genre": "Pop, Soul",
+          "deezer_id": "1223043",
+          "tracks": [
+            {
+              "title": "Rolling in the Deep",
+              "duration": 228000,
+              "track_number": 1,
+              "isrc": "GBAYE0601477",
+              "composer": "Adele Adkins, Paul Epworth"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rosalía",
+      "deezer_id": "5897194",
+      "albums": [
+        {
+          "title": "El Mal Querer",
+          "release_date": "2018-11-02",
+          "genre": "Flamenco, Pop",
+          "deezer_id": "75352162",
+          "tracks": [
+            {
+              "title": "Malamente",
+              "duration": 162000,
+              "track_number": 1,
+              "isrc": "ESPC81400001",
+              "composer": "Rosalía Vila, Pablo Díaz-Reixa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Édith Piaf",
+      "deezer_id": "5336",
+      "albums": [
+        {
+          "title": "Les Grands Succès",
+          "release_date": "1958-01-01",
+          "genre": "Chanson Française",
+          "deezer_id": "9876543",
+          "tracks": [
+            {
+              "title": "La Vie en Rose",
+              "duration": 189000,
+              "track_number": 3,
+              "isrc": "FRXXX1234567",
+              "composer": "Édith Piaf, Louiguy"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
