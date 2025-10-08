@@ -46,7 +46,7 @@ func RegisterRoutes(router *gin.Engine, p ProxyHandler, m MusicHandler, l Librar
 	router.GET("/tracks/search", l.FindTrackInLibrary)
 	router.DELETE("/users/:username/tracks/:trackId", l.DeleteTrackFromLibrary)
 
-	router.GET("/users/:username/tracks", l.GetTracks)
+	router.GET("/users/:username/tracks", l.GetUserTracks)
 	router.GET("/tracks/:trackId/stream", l.StreamTrack)
 
 	router.POST("/users", u.RegisterUser)

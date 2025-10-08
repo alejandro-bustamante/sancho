@@ -1,10 +1,10 @@
 bin
-go.mod
-go.sum
 server/database/*.sancho*
 server/.env
 server/cmd/bitrate
 server/build
 config.toml
+test/setup_test_env
+test/test_env
 
 .env
