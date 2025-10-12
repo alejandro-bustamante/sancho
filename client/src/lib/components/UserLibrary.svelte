@@ -78,10 +78,8 @@
 	}
 </script>
 
-<div class="container mx-auto max-w-4xl p-4 text-white">
-	<div class="mb-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
-		<a href="/" class="text-purple-400 hover:text-purple-300">&larr; Volver a la búsqueda</a>
-		<h1 class="text-3xl font-bold">Mi Librería</h1>
+<div class="container mx-auto max-w-4xl py-4 text-white">
+	<div class="mb-6 flex justify-end">
 		<input
 			type="text"
 			bind:value={searchTerm}
@@ -136,12 +134,12 @@
 							>
 							<td class="whitespace-nowrap px-6 py-4 text-sm">
 								<div class="flex items-center gap-2">
+									<!-- svelte-ignore a11y_consider_explicit_label -->
 									<button
 										on:click={() => playTrack(track)}
 										class="text-green-400 hover:text-green-300"
 										title="Reproducir"
 									>
-										<!-- Icono Play SVG -->
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
 											width="20"
@@ -154,12 +152,12 @@
 											stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg
 										>
 									</button>
+									<!-- svelte-ignore a11y_consider_explicit_label -->
 									<button
 										on:click={() => handleDelete(track.id)}
 										class="text-red-400 hover:text-red-300"
 										title="Eliminar"
 									>
-										<!-- Icono Papelera SVG -->
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
 											width="20"

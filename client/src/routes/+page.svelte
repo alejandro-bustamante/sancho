@@ -1,58 +1,72 @@
 <script lang="ts">
 	import { currentUser } from '$lib/stores/auth';
-	import { onMount } from 'svelte';
-	import { get } from 'svelte/store';
-
 	import NotificationList from '$lib/components/NotificationList.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import TrackList from '$lib/components/TrackList.svelte';
 	import LoginPage from '$lib/components/LoginPage.svelte';
 	import UserLibrary from '$lib/components/UserLibrary.svelte';
 
+	// Import the new store for view management
+	import { currentView, navigateTo } from '$lib/stores/navigation';
+
 	function logout() {
-		currentUser.set(null); // Esto también borra localStorage
+		currentUser.set(null);
+		navigateTo('search'); // Reset the view to 'search' on logout
 	}
-
-	let user: string | null = null;
-
-	// Nos suscribimos al store para saber si hay sesión
-	$currentUser; // esto vuelve reactivo automáticamente
-	let currentView: 'search' | 'library' = 'search';
-
-	let showMenu = false;
 </script>
 
-<!-- Al lado del resto de componentes -->
-<div class="flex w-full items-center justify-end gap-4 px-4 pt-2">
-	{#if $currentUser}
-		<button
-			on:click={() => (currentView = 'library')}
-			class="rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-		>
-			Mi Librería
-		</button>
-		<button
-			on:click={logout}
-			class="rounded border border-red-900 px-3 py-1 text-sm text-red-50 transition hover:bg-red-800"
-		>
-			Cerrar sesión
-		</button>
-	{/if}
-</div>
-
 {#if $currentUser === null}
-	<!-- Usuario no autenticado: mostramos login -->
 	<LoginPage />
 {:else}
-	<!-- Usuario autenticado: mostramos app principal -->
 	<div class="text-light flex min-h-screen flex-col items-center bg-gray-950 px-4 pt-5">
-		<h1 class="mb-4 text-4xl font-bold text-white">Sancho</h1>
+		<div class="flex w-full max-w-4xl items-center justify-between">
+			<h1 class="text-4xl font-bold text-white">Sancho</h1>
+			<button
+				on:click={logout}
+				class="rounded border border-red-900 px-3 py-1 text-sm text-red-50 transition hover:bg-red-800"
+			>
+				Cerrar sesión
+			</button>
+		</div>
+
 		<NotificationList />
-		{#if currentView === 'search'}
-			<SearchBar />
-			<TrackList />
-		{:else if currentView === 'library'}
-			<UserLibrary />
-		{/if}
+
+		<div class="mb-4 mt-8 w-full max-w-4xl border-b border-gray-700">
+			<nav class="-mb-px flex space-x-4">
+				<button
+					on:click={() => navigateTo('search')}
+					class="whitespace-nowrap border-b-2 px-4 py-2 text-lg font-medium transition-colors"
+					class:border-purple-500={$currentView === 'search'}
+					class:text-purple-400={$currentView === 'search'}
+					class:border-transparent={$currentView !== 'search'}
+					class:text-gray-400={$currentView !== 'search'}
+					class:hover:text-white={$currentView !== 'search'}
+					class:hover:border-gray-500={$currentView !== 'search'}
+				>
+					Búsqueda
+				</button>
+				<button
+					on:click={() => navigateTo('library')}
+					class="whitespace-nowrap border-b-2 px-4 py-2 text-lg font-medium transition-colors"
+					class:border-purple-500={$currentView === 'library'}
+					class:text-purple-400={$currentView === 'library'}
+					class:border-transparent={$currentView !== 'library'}
+					class:text-gray-400={$currentView !== 'library'}
+					class:hover:text-white={$currentView !== 'library'}
+					class:hover:border-gray-500={$currentView !== 'library'}
+				>
+					Librería
+				</button>
+			</nav>
+		</div>
+
+		<div class="w-full max-w-4xl">
+			{#if $currentView === 'search'}
+				<SearchBar />
+				<TrackList />
+			{:else if $currentView === 'library'}
+				<UserLibrary />
+			{/if}
+		</div>
 	</div>
 {/if}
