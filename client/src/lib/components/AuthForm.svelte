@@ -13,7 +13,7 @@
 		const payload: Record<string, string> = { username, password };
 		if (mode === 'register') payload.email = email;
 
-		const res = await fetch(`${API_IP}/${mode === 'login' ? 'auth' : 'users'}`, {
+		const res = await fetch(`${API_IP}/api/${mode === 'login' ? 'auth' : 'users'}`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(payload)

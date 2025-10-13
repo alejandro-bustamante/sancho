@@ -24,3 +24,8 @@ type FileManager interface {
 	LinkTrackToUser(ctx context.Context, isrc, user string) (symlinkPath string, err error)
 	DeleteTrackForUser(ctx context.Context, username string, trackID int64) error
 }
+
+type ThumbnailService interface {
+	GenerateAlbumThumbnails()
+	GetStatus() (isRunning bool, processed int, total int, err string)
+}

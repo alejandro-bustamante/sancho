@@ -17,7 +17,7 @@
 		if (!user) return;
 
 		try {
-			const res = await fetch(`${API_IP}/users/${user}/tracks`);
+			const res = await fetch(`${API_IP}/api/users/${user}/tracks`);
 			if (!res.ok) throw new Error('No se pudo cargar la librería.');
 			const data = await res.json();
 			tracks = data || [];
@@ -45,6 +45,18 @@
 		}
 	}
 
+	function getAlbumArtUrl(path: string): string {
+		if (!path || path.includes('/dev/null')) {
+			return '';
+		}
+		const pathParts = path.split('/library/');
+		if (pathParts.length > 1) {
+			const relativePath = pathParts[1];
+			return `${API_IP}/library/${relativePath}`;
+		}
+		return '';
+	}
+
 	// Formatea la duración de segundos a mm:ss
 	function formatDuration(ms: number | null): string {
 		if (ms === null) return 'N/A';
@@ -62,13 +74,12 @@
 		if (!confirm('¿Estás seguro de que quieres eliminar esta canción de tu librería?')) return;
 
 		try {
-			const res = await fetch(`${API_IP}/users/${user}/tracks/${trackId}`, {
+			const res = await fetch(`${API_IP}/api/users/${user}/tracks/${trackId}`, {
 				method: 'DELETE'
 			});
 
 			if (!res.ok) throw new Error('No se pudo eliminar la canción.');
 
-			// Actualiza la UI eliminando la canción de la lista
 			tracks = tracks.filter((t) => t.id !== trackId);
 			notifications.add({ type: 'success', message: 'Canción eliminada correctamente.' });
 		} catch (error) {
@@ -94,45 +105,76 @@
 		<p class="text-center text-gray-400">No se encontraron canciones. ¡Prueba a añadir algunas!</p>
 	{:else}
 		<div class="overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
-			<table class="min-w-full divide-y divide-gray-700">
+			<table class="min-w-full table-fixed divide-y divide-gray-700">
 				<thead class="bg-gray-800">
 					<tr>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
-							>Título</th
+							class="w-16 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
+						></th>
+						<th
+							class="w-2/5 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
+							>Título / Álbum</th
 						>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
+							class="w-1/4 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
 							>Artista</th
 						>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
-							>Álbum</th
-						>
-						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
+							class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
 							>Duración</th
 						>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
+							class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300"
 							>Acciones</th
 						>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-700 bg-gray-900">
 					{#each filteredTracks as track (track.id)}
+						{@const artUrl = getAlbumArtUrl(track.album_art_path.String)}
 						<tr class="transition-colors hover:bg-gray-800">
-							<td class="whitespace-nowrap px-6 py-4 text-sm font-medium">{track.title}</td>
-							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-400"
+							<td class="whitespace-nowrap p-4">
+								{#if artUrl}
+									<img
+										src={artUrl}
+										alt="Cover for {track.album.String}"
+										class="h-12 w-12 rounded object-cover"
+									/>
+								{:else}
+									<div
+										class="flex h-12 w-12 items-center justify-center rounded bg-gray-700 text-gray-500"
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="24"
+											height="24"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"
+											></circle><circle cx="18" cy="16" r="3"></circle></svg
+										>
+									</div>
+								{/if}
+							</td>
+							<td class="px-4 py-4 align-top">
+								<div class="break-words text-sm">
+									<p class="font-bold text-white">{track.title}</p>
+									<p class="italic text-gray-400">
+										{track.album.Valid ? track.album.String : 'Álbum Desconocido'}
+									</p>
+								</div>
+							</td>
+							<td class="whitespace-normal break-words px-4 py-4 align-top text-sm text-gray-400"
 								>{track.artist.Valid ? track.artist.String : 'N/A'}</td
 							>
-							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-400"
-								>{track.album.Valid ? track.album.String : 'N/A'}</td
-							>
-							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-400"
+							<td class="whitespace-nowrap px-4 py-4 align-top text-sm text-gray-400"
 								>{formatDuration(track.duration.Valid ? track.duration.Int64 : null)}</td
 							>
-							<td class="whitespace-nowrap px-6 py-4 text-sm">
+							<td class="whitespace-nowrap px-4 py-4 align-top text-sm">
 								<div class="flex items-center gap-2">
 									<!-- svelte-ignore a11y_consider_explicit_label -->
 									<button

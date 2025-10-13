@@ -103,7 +103,8 @@ SELECT
   t.title,
   t.duration,
   art.name AS artist,
-  alb.title AS album
+  alb.title AS album,
+  alb.album_art_path
 FROM track AS t
 JOIN user_track AS ut ON t.id = ut.track_id
 JOIN "user" AS u ON ut.user_id = u.id
@@ -114,11 +115,12 @@ ORDER BY art.name, alb.title, t.track_number
 `
 
 type ListTracksByUsernameRow struct {
-	ID       int64          `json:"id"`
-	Title    string         `json:"title"`
-	Duration sql.NullInt64  `json:"duration"`
-	Artist   sql.NullString `json:"artist"`
-	Album    sql.NullString `json:"album"`
+	ID           int64          `json:"id"`
+	Title        string         `json:"title"`
+	Duration     sql.NullInt64  `json:"duration"`
+	Artist       sql.NullString `json:"artist"`
+	Album        sql.NullString `json:"album"`
+	AlbumArtPath sql.NullString `json:"album_art_path"`
 }
 
 func (q *Queries) ListTracksByUsername(ctx context.Context, username string) ([]ListTracksByUsernameRow, error) {
@@ -136,6 +138,7 @@ func (q *Queries) ListTracksByUsername(ctx context.Context, username string) ([]
 			&i.Duration,
 			&i.Artist,
 			&i.Album,
+			&i.AlbumArtPath,
 		); err != nil {
 			return nil, err
 		}

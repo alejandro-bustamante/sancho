@@ -13,7 +13,7 @@
 		tracks.set([]); // Limpiamos resultados anteriores
 
 		try {
-			let api = `${API_IP}/search?q=${encodeURIComponent(query)}`;
+			let api = `${API_IP}/api/search?q=${encodeURIComponent(query)}`;
 			// const res = await fetch(`${API_IP}/search?q=${encodeURIComponent(query)}`);
 			const res = await fetch(api);
 			const data = await res.json();

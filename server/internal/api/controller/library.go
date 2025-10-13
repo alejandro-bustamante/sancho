@@ -22,16 +22,18 @@ type LibraryIndexRequest struct {
 }
 
 type LibraryHandler struct {
-	queries        *db.Queries
-	indexerService Indexer
-	fileManager    FileManager
+	queries          *db.Queries
+	indexerService   Indexer
+	fileManager      FileManager
+	thumbnailService ThumbnailService
 }
 
-func NewLibraryHandler(q *db.Queries, s Indexer, f FileManager) *LibraryHandler {
+func NewLibraryHandler(q *db.Queries, s Indexer, f FileManager, t ThumbnailService) *LibraryHandler {
 	return &LibraryHandler{
-		queries:        q,
-		indexerService: s,
-		fileManager:    f,
+		queries:          q,
+		indexerService:   s,
+		fileManager:      f,
+		thumbnailService: t,
 	}
 }
 
@@ -159,4 +161,21 @@ func (h *LibraryHandler) DeleteTrackFromLibrary(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Canción eliminada de la librería correctamente"})
+}
+
+func (h *LibraryHandler) GenerateAlbumThumbnails(c *gin.Context) {
+	h.thumbnailService.GenerateAlbumThumbnails()
+	c.JSON(http.StatusAccepted, gin.H{
+		"message": "Album thumbnail generation started in the background.",
+	})
+}
+
+func (h *LibraryHandler) GetThumbnailGenerationStatus(c *gin.Context) {
+	isRunning, processed, total, errMsg := h.thumbnailService.GetStatus()
+	c.JSON(http.StatusOK, gin.H{
+		"isRunning": isRunning,
+		"processed": processed,
+		"total":     total,
+		"error":     errMsg,
+	})
 }

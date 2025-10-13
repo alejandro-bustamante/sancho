@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -54,10 +55,16 @@ const (
 	dbPath       = "./test_env/sancho_test.db"
 	libraryPath  = "./test_env/library"
 	testDataJSON = "./test_data.json"
+	coverArtFile = "cover.jpg"
 )
 
 func main() {
 	log.Println("Iniciando creación del entorno de pruebas...")
+
+	// Verificar que existe cover.jpg
+	if _, err := os.Stat(coverArtFile); os.IsNotExist(err) {
+		log.Fatalf("Error: no se encuentra el archivo %s en el directorio actual", coverArtFile)
+	}
 
 	// Limpiar entorno previo
 	cleanupEnvironment()
@@ -349,6 +356,10 @@ func populateDatabase(db *sql.DB, testData *TestData) error {
 	}
 	defer tx.Rollback()
 
+	// Obtener directorio del ejecutable para paths absolutos
+	executable, _ := os.Executable()
+	testDir := filepath.Dir(executable)
+
 	// Insertar usuarios
 	userIDs := make(map[string]int64)
 	for _, user := range testData.Users {
@@ -378,11 +389,14 @@ func populateDatabase(db *sql.DB, testData *TestData) error {
 		artistID, _ := artistResult.LastInsertId()
 
 		for _, album := range artist.Albums {
-			// Insertar álbum
+			// Construir ruta del cover.jpg
+			coverPath := filepath.Join(testDir, "/test_env/library", artist.Name, album.Title, "cover.jpg")
+
+			// Insertar álbum con album_art_path
 			albumResult, err := tx.Exec(`
-				INSERT INTO album (deezer_id, title, normalized_title, artist_id, release_date, genre, total_tracks)
-				VALUES (?, ?, ?, ?, ?, ?, ?)
-			`, album.DeezerID, album.Title, normalize(album.Title), artistID, album.ReleaseDate, album.Genre, len(album.Tracks))
+				INSERT INTO album (deezer_id, title, normalized_title, artist_id, release_date, genre, total_tracks, album_art_path)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`, album.DeezerID, album.Title, normalize(album.Title), artistID, album.ReleaseDate, album.Genre, len(album.Tracks), coverPath)
 			if err != nil {
 				return err
 			}
@@ -391,10 +405,6 @@ func populateDatabase(db *sql.DB, testData *TestData) error {
 			for _, track := range album.Tracks {
 				// Construir ruta del archivo
 				fileName := fmt.Sprintf("%02d. %s - %s.flac", track.TrackNumber, track.Title, artist.Name)
-
-				// Find the executable path to put the full path in the test database
-				executable, _ := os.Executable()
-				testDir := filepath.Dir(executable)
 				filePath := filepath.Join(testDir, "/test_env/library", artist.Name, album.Title, fileName)
 
 				// Insertar canción
@@ -469,12 +479,18 @@ func createFileStructure(db *sql.DB, testData *TestData) error {
 		return err
 	}
 
-	// Crear archivos de canciones
+	// Crear archivos de canciones y copiar cover.jpg
 	for _, artist := range testData.Artists {
 		for _, album := range artist.Albums {
 			albumPath := filepath.Join(libraryPath, artist.Name, album.Title)
 			if err := os.MkdirAll(albumPath, 0755); err != nil {
 				return err
+			}
+
+			// Copiar cover.jpg al directorio del álbum
+			coverDest := filepath.Join(albumPath, "cover.jpg")
+			if err := copyFile(coverArtFile, coverDest); err != nil {
+				return fmt.Errorf("error copiando cover.jpg a %s: %v", albumPath, err)
 			}
 
 			for _, track := range album.Tracks {
@@ -527,6 +543,27 @@ func createFileStructure(db *sql.DB, testData *TestData) error {
 	}
 
 	return nil
+}
+
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return destFile.Sync()
 }
 
 func generateUUID() string {

@@ -29,7 +29,8 @@ SELECT
   t.title,
   t.duration,
   art.name AS artist,
-  alb.title AS album
+  alb.title AS album,
+  alb.album_art_path
 FROM track AS t
 JOIN user_track AS ut ON t.id = ut.track_id
 JOIN "user" AS u ON ut.user_id = u.id

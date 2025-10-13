@@ -63,6 +63,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getAlbumByTrackIDStmt, err = db.PrepareContext(ctx, getAlbumByTrackID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlbumByTrackID: %w", err)
 	}
+	if q.getAlbumsWithoutArtStmt, err = db.PrepareContext(ctx, getAlbumsWithoutArt); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAlbumsWithoutArt: %w", err)
+	}
 	if q.getArtistByDeezerIDStmt, err = db.PrepareContext(ctx, getArtistByDeezerID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetArtistByDeezerID: %w", err)
 	}
@@ -71,6 +74,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getArtistByTrackIDStmt, err = db.PrepareContext(ctx, getArtistByTrackID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetArtistByTrackID: %w", err)
+	}
+	if q.getFirstTrackByAlbumIDStmt, err = db.PrepareContext(ctx, getFirstTrackByAlbumID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetFirstTrackByAlbumID: %w", err)
 	}
 	if q.getTrackByIDStmt, err = db.PrepareContext(ctx, getTrackByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetTrackByID: %w", err)
@@ -113,6 +119,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.trackExistsByISRCStmt, err = db.PrepareContext(ctx, trackExistsByISRC); err != nil {
 		return nil, fmt.Errorf("error preparing query TrackExistsByISRC: %w", err)
+	}
+	if q.updateAlbumArtPathStmt, err = db.PrepareContext(ctx, updateAlbumArtPath); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateAlbumArtPath: %w", err)
 	}
 	if q.updateDownloadCompletionStmt, err = db.PrepareContext(ctx, updateDownloadCompletion); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateDownloadCompletion: %w", err)
@@ -193,6 +202,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getAlbumByTrackIDStmt: %w", cerr)
 		}
 	}
+	if q.getAlbumsWithoutArtStmt != nil {
+		if cerr := q.getAlbumsWithoutArtStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAlbumsWithoutArtStmt: %w", cerr)
+		}
+	}
 	if q.getArtistByDeezerIDStmt != nil {
 		if cerr := q.getArtistByDeezerIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getArtistByDeezerIDStmt: %w", cerr)
@@ -206,6 +220,11 @@ func (q *Queries) Close() error {
 	if q.getArtistByTrackIDStmt != nil {
 		if cerr := q.getArtistByTrackIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getArtistByTrackIDStmt: %w", cerr)
+		}
+	}
+	if q.getFirstTrackByAlbumIDStmt != nil {
+		if cerr := q.getFirstTrackByAlbumIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getFirstTrackByAlbumIDStmt: %w", cerr)
 		}
 	}
 	if q.getTrackByIDStmt != nil {
@@ -278,6 +297,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing trackExistsByISRCStmt: %w", cerr)
 		}
 	}
+	if q.updateAlbumArtPathStmt != nil {
+		if cerr := q.updateAlbumArtPathStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateAlbumArtPathStmt: %w", cerr)
+		}
+	}
 	if q.updateDownloadCompletionStmt != nil {
 		if cerr := q.updateDownloadCompletionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateDownloadCompletionStmt: %w", cerr)
@@ -345,9 +369,11 @@ type Queries struct {
 	getAlbumByDeezerIDStmt                   *sql.Stmt
 	getAlbumByNormalizedTitleAndArtistStmt   *sql.Stmt
 	getAlbumByTrackIDStmt                    *sql.Stmt
+	getAlbumsWithoutArtStmt                  *sql.Stmt
 	getArtistByDeezerIDStmt                  *sql.Stmt
 	getArtistByNormalizedNameStmt            *sql.Stmt
 	getArtistByTrackIDStmt                   *sql.Stmt
+	getFirstTrackByAlbumIDStmt               *sql.Stmt
 	getTrackByIDStmt                         *sql.Stmt
 	getUserByUsernameStmt                    *sql.Stmt
 	getUserTrackStmt                         *sql.Stmt
@@ -362,6 +388,7 @@ type Queries struct {
 	searchTracksByISRCStmt                   *sql.Stmt
 	searchTracksByTitleStmt                  *sql.Stmt
 	trackExistsByISRCStmt                    *sql.Stmt
+	updateAlbumArtPathStmt                   *sql.Stmt
 	updateDownloadCompletionStmt             *sql.Stmt
 	updateLastLoginStmt                      *sql.Stmt
 	updateTrackFilePathStmt                  *sql.Stmt
@@ -384,9 +411,11 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getAlbumByDeezerIDStmt:                   q.getAlbumByDeezerIDStmt,
 		getAlbumByNormalizedTitleAndArtistStmt:   q.getAlbumByNormalizedTitleAndArtistStmt,
 		getAlbumByTrackIDStmt:                    q.getAlbumByTrackIDStmt,
+		getAlbumsWithoutArtStmt:                  q.getAlbumsWithoutArtStmt,
 		getArtistByDeezerIDStmt:                  q.getArtistByDeezerIDStmt,
 		getArtistByNormalizedNameStmt:            q.getArtistByNormalizedNameStmt,
 		getArtistByTrackIDStmt:                   q.getArtistByTrackIDStmt,
+		getFirstTrackByAlbumIDStmt:               q.getFirstTrackByAlbumIDStmt,
 		getTrackByIDStmt:                         q.getTrackByIDStmt,
 		getUserByUsernameStmt:                    q.getUserByUsernameStmt,
 		getUserTrackStmt:                         q.getUserTrackStmt,
@@ -401,6 +430,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		searchTracksByISRCStmt:                   q.searchTracksByISRCStmt,
 		searchTracksByTitleStmt:                  q.searchTracksByTitleStmt,
 		trackExistsByISRCStmt:                    q.trackExistsByISRCStmt,
+		updateAlbumArtPathStmt:                   q.updateAlbumArtPathStmt,
 		updateDownloadCompletionStmt:             q.updateDownloadCompletionStmt,
 		updateLastLoginStmt:                      q.updateLastLoginStmt,
 		updateTrackFilePathStmt:                  q.updateTrackFilePathStmt,

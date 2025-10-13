@@ -25,4 +25,5 @@ export interface UserLibraryTrack {
 	duration: { Int64: number; Valid: boolean };
 	artist: { String: string; Valid: boolean };
 	album: { String: string; Valid: boolean };
+	album_art_path: { String: string; Valid: boolean };
 }

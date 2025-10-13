@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export type View = 'search' | 'library';
+export type View = 'search' | 'library' | 'settings';
 
 export const currentView = writable<View>('search');
 

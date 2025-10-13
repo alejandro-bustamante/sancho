@@ -5,6 +5,7 @@
 	import TrackList from '$lib/components/TrackList.svelte';
 	import LoginPage from '$lib/components/LoginPage.svelte';
 	import UserLibrary from '$lib/components/UserLibrary.svelte';
+	import SettingsPage from '$lib/components/SettingsPage.svelte';
 
 	// Import the new store for view management
 	import { currentView, navigateTo } from '$lib/stores/navigation';
@@ -57,6 +58,18 @@
 				>
 					Librería
 				</button>
+				<button
+					on:click={() => navigateTo('settings')}
+					class="whitespace-nowrap border-b-2 px-4 py-2 text-lg font-medium transition-colors"
+					class:border-purple-500={$currentView === 'settings'}
+					class:text-purple-400={$currentView === 'settings'}
+					class:border-transparent={$currentView !== 'settings'}
+					class:text-gray-400={$currentView !== 'settings'}
+					class:hover:text-white={$currentView !== 'settings'}
+					class:hover:border-gray-500={$currentView !== 'settings'}
+				>
+					Configuración
+				</button>
 			</nav>
 		</div>
 
@@ -66,6 +79,8 @@
 				<TrackList />
 			{:else if $currentView === 'library'}
 				<UserLibrary />
+			{:else if $currentView === 'settings'}
+				<SettingsPage />
 			{/if}
 		</div>
 	</div>

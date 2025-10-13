@@ -23,9 +23,11 @@ type Querier interface {
 	GetAlbumByDeezerID(ctx context.Context, deezerID sql.NullString) (Album, error)
 	GetAlbumByNormalizedTitleAndArtist(ctx context.Context, arg GetAlbumByNormalizedTitleAndArtistParams) (Album, error)
 	GetAlbumByTrackID(ctx context.Context, trackID int64) (Album, error)
+	GetAlbumsWithoutArt(ctx context.Context) ([]Album, error)
 	GetArtistByDeezerID(ctx context.Context, deezerID sql.NullString) (Artist, error)
 	GetArtistByNormalizedName(ctx context.Context, normalizedName string) (Artist, error)
 	GetArtistByTrackID(ctx context.Context, trackID int64) (Artist, error)
+	GetFirstTrackByAlbumID(ctx context.Context, albumID sql.NullInt64) (Track, error)
 	GetTrackByID(ctx context.Context, id int64) (Track, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUserTrack(ctx context.Context, arg GetUserTrackParams) (UserTrack, error)
@@ -40,6 +42,7 @@ type Querier interface {
 	SearchTracksByISRC(ctx context.Context, isrc sql.NullString) (Track, error)
 	SearchTracksByTitle(ctx context.Context, title sql.NullString) ([]Track, error)
 	TrackExistsByISRC(ctx context.Context, isrc sql.NullString) (int64, error)
+	UpdateAlbumArtPath(ctx context.Context, arg UpdateAlbumArtPathParams) error
 	UpdateDownloadCompletion(ctx context.Context, arg UpdateDownloadCompletionParams) error
 	UpdateLastLogin(ctx context.Context, id int64) error
 	UpdateTrackFilePath(ctx context.Context, arg UpdateTrackFilePathParams) error

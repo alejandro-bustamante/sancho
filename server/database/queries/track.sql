@@ -52,3 +52,8 @@ WHERE id = sqlc.arg('track_id');
 -- name: DeleteTrack :exec
 DELETE FROM track
 WHERE id = sqlc.arg('id');
+
+-- name: GetFirstTrackByAlbumID :one
+SELECT * FROM track
+WHERE album_id = sqlc.arg('album_id')
+LIMIT 1;

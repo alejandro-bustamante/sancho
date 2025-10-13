@@ -11,7 +11,6 @@ type ProxyHandler interface {
 type MusicHandler interface {
 	DownloadSingleTrack(c *gin.Context)
 	SearchTracksByTitle(c *gin.Context)
-	// SearchTracksDeezer(c *gin.Context)
 	GetDownloadStatus(c *gin.Context)
 	GetTrackSample(c *gin.Context)
 }
@@ -22,6 +21,8 @@ type LibraryHandler interface {
 	DeleteTrackFromLibrary(c *gin.Context)
 	GetUserTracks(c *gin.Context)
 	StreamTrack(c *gin.Context)
+	GenerateAlbumThumbnails(c *gin.Context)
+	GetThumbnailGenerationStatus(c *gin.Context)
 }
 
 type UserHandler interface {
@@ -33,24 +34,30 @@ type UserHandler interface {
 
 func RegisterRoutes(router *gin.Engine, p ProxyHandler, m MusicHandler, l LibraryHandler, u UserHandler) {
 	router.Use(mdw.CORSMiddleware())
-	router.GET("/proxy", p.ProxyCORSHandler)
 
-	router.POST("/downloads", m.DownloadSingleTrack)
-	router.GET("/search", m.SearchTracksByTitle)
-	// router.POST("/search/deezer", m.SearchTracksDeezer)
-	router.GET("/downloads/:id/status", m.GetDownloadStatus)
-	router.GET("/search/:isrc/sample", m.GetTrackSample)
+	api := router.Group("/api")
+	{
+		api.GET("/proxy", p.ProxyCORSHandler)
 
-	router.POST("/index", l.IndexFolder)
-	router.GET("/tracks", l.GetTracks) //List all songs, maybe for use in the future
-	router.GET("/tracks/search", l.FindTrackInLibrary)
-	router.DELETE("/users/:username/tracks/:trackId", l.DeleteTrackFromLibrary)
+		api.POST("/downloads", m.DownloadSingleTrack)
+		api.GET("/search", m.SearchTracksByTitle)
+		api.GET("/downloads/:id/status", m.GetDownloadStatus)
+		api.GET("/search/:isrc/sample", m.GetTrackSample)
 
-	router.GET("/users/:username/tracks", l.GetUserTracks)
-	router.GET("/tracks/:trackId/stream", l.StreamTrack)
+		api.POST("/index", l.IndexFolder)
+		api.GET("/tracks", l.GetTracks)
+		api.GET("/tracks/search", l.FindTrackInLibrary)
+		api.DELETE("/users/:username/tracks/:trackId", l.DeleteTrackFromLibrary)
 
-	router.POST("/users", u.RegisterUser)
-	router.DELETE("/users", u.DeleteUser)
-	router.POST("/auth", u.AuthenticateUser)
-	router.PATCH("/users/:id", u.UpdateUser)
+		api.POST("/library/thumbnails", l.GenerateAlbumThumbnails)
+		api.GET("/library/thumbnails/status", l.GetThumbnailGenerationStatus)
+
+		api.GET("/users/:username/tracks", l.GetUserTracks)
+		api.GET("/tracks/:trackId/stream", l.StreamTrack)
+
+		api.POST("/users", u.RegisterUser)
+		api.DELETE("/users", u.DeleteUser)
+		api.POST("/auth", u.AuthenticateUser)
+		api.PATCH("/users/:id", u.UpdateUser)
+	}
 }

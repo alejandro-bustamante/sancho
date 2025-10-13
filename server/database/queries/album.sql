@@ -32,3 +32,12 @@ WHERE album_id = sqlc.arg('album_id');
 -- name: DeleteAlbum :exec
 DELETE FROM album
 WHERE id = sqlc.arg('id');
+
+-- name: GetAlbumsWithoutArt :many
+SELECT * FROM album
+WHERE album_art_path IS NULL;
+
+-- name: UpdateAlbumArtPath :exec
+UPDATE album
+SET album_art_path = sqlc.arg('album_art_path')
+WHERE id = sqlc.arg('id');

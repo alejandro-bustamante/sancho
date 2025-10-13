@@ -99,6 +99,45 @@ func (q *Queries) GetAlbumByNormalizedTitleAndArtist(ctx context.Context, arg Ge
 	return i, err
 }
 
+const getAlbumsWithoutArt = `-- name: GetAlbumsWithoutArt :many
+SELECT id, deezer_id, title, normalized_title, artist_id, release_date, album_art_path, genre, total_tracks, created_at FROM album
+WHERE album_art_path IS NULL
+`
+
+func (q *Queries) GetAlbumsWithoutArt(ctx context.Context) ([]Album, error) {
+	rows, err := q.query(ctx, q.getAlbumsWithoutArtStmt, getAlbumsWithoutArt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Album{}
+	for rows.Next() {
+		var i Album
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeezerID,
+			&i.Title,
+			&i.NormalizedTitle,
+			&i.ArtistID,
+			&i.ReleaseDate,
+			&i.AlbumArtPath,
+			&i.Genre,
+			&i.TotalTracks,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertAlbum = `-- name: InsertAlbum :one
 INSERT INTO album (
   deezer_id, title, normalized_title, artist_id, release_date,
@@ -147,4 +186,20 @@ func (q *Queries) InsertAlbum(ctx context.Context, arg InsertAlbumParams) (Album
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const updateAlbumArtPath = `-- name: UpdateAlbumArtPath :exec
+UPDATE album
+SET album_art_path = ?1
+WHERE id = ?2
+`
+
+type UpdateAlbumArtPathParams struct {
+	AlbumArtPath sql.NullString `json:"album_art_path"`
+	ID           int64          `json:"id"`
+}
+
+func (q *Queries) UpdateAlbumArtPath(ctx context.Context, arg UpdateAlbumArtPathParams) error {
+	_, err := q.exec(ctx, q.updateAlbumArtPathStmt, updateAlbumArtPath, arg.AlbumArtPath, arg.ID)
+	return err
 }

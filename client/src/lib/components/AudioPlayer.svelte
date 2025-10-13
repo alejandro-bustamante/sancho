@@ -6,7 +6,7 @@
 
 	// Reacciona a los cambios en la canción actual
 	$: if ($currentTrack && audioPlayer) {
-		audioPlayer.src = `${API_IP}/tracks/${$currentTrack.id}/stream`;
+		audioPlayer.src = `${API_IP}/api/tracks/${$currentTrack.id}/stream`;
 		if ($isPlaying) {
 			audioPlayer.play().catch((e) => console.error('Error al reproducir audio:', e));
 		}
