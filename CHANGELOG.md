@@ -9,3 +9,7 @@
 - Added button in config tab to generate the album cover for all the library.
 - Button for remove the song from the user's library.
 - Button to play the user's song from the browser.
+
+## [v1.2.1] - 2025-10-13
+
+- Fixed error with the backend IP.
