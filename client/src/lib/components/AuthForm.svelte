@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { notifications } from '$lib/stores/notifications';
 	import { currentUser } from '$lib/stores/auth';
-	import { API_IP } from '$lib/config';
 
 	export let mode: 'login' | 'register';
 	// Campos del formulario
@@ -13,7 +12,7 @@
 		const payload: Record<string, string> = { username, password };
 		if (mode === 'register') payload.email = email;
 
-		const res = await fetch(`${API_IP}/api/${mode === 'login' ? 'auth' : 'users'}`, {
+		const res = await fetch(`http://localhost:5400/api/${mode === 'login' ? 'auth' : 'users'}`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(payload)

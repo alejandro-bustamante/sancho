@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { currentTrack, isPlaying } from '$lib/stores/playerStore';
-	import { API_IP } from '$lib/config';
 
 	let audioPlayer: HTMLAudioElement;
 
 	// Reacciona a los cambios en la canción actual
 	$: if ($currentTrack && audioPlayer) {
-		audioPlayer.src = `${API_IP}/api/tracks/${$currentTrack.id}/stream`;
+		audioPlayer.src = `http://localhost:5400/api/tracks/${$currentTrack.id}/stream`;
 		if ($isPlaying) {
 			audioPlayer.play().catch((e) => console.error('Error al reproducir audio:', e));
 		}

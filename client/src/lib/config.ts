@@ -1,3 +1,1 @@
-import { PUBLIC_API_IP } from '$env/static/public';
-
-export const API_IP = PUBLIC_API_IP;
+export const API_IP = 'http://localhost:5400';

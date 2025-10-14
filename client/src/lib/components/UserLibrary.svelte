@@ -4,7 +4,6 @@
 	import { notifications } from '$lib/stores/notifications';
 	import { playTrack } from '$lib/stores/playerStore';
 	import type { UserLibraryTrack } from '$lib/stores/types';
-	import { API_IP } from '$lib/config';
 
 	let tracks: UserLibraryTrack[] = [];
 	let filteredTracks: UserLibraryTrack[] = [];
@@ -17,7 +16,7 @@
 		if (!user) return;
 
 		try {
-			const res = await fetch(`${API_IP}/api/users/${user}/tracks`);
+			const res = await fetch(`http://localhost:5400/api/users/${user}/tracks`);
 			if (!res.ok) throw new Error('No se pudo cargar la librería.');
 			const data = await res.json();
 			tracks = data || [];
@@ -52,7 +51,7 @@
 		const pathParts = path.split('/library/');
 		if (pathParts.length > 1) {
 			const relativePath = pathParts[1];
-			return `${API_IP}/library/${relativePath}`;
+			return `http://localhost:5400/library/${relativePath}`;
 		}
 		return '';
 	}
@@ -74,7 +73,7 @@
 		if (!confirm('¿Estás seguro de que quieres eliminar esta canción de tu librería?')) return;
 
 		try {
-			const res = await fetch(`${API_IP}/api/users/${user}/tracks/${trackId}`, {
+			const res = await fetch(`http://localhost:5400/api/users/${user}/tracks/${trackId}`, {
 				method: 'DELETE'
 			});
 
