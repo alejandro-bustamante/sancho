@@ -14,11 +14,15 @@ import (
 )
 
 type FileManager struct {
+	db      *sql.DB
 	queries *db.Queries
 }
 
-func NewFileManager(queries *db.Queries) *FileManager {
-	return &FileManager{queries: queries}
+func NewFileManager(db *sql.DB, queries *db.Queries) *FileManager {
+	return &FileManager{
+		db:      db,
+		queries: queries,
+	}
 }
 
 func (fm *FileManager) renameTrack(ctx context.Context, track model.Track, artistName string) (string, error) {
@@ -182,4 +186,131 @@ func sanitizeFilename(name string) string {
 	// Chars known to cause issues
 	invalidChars := regexp.MustCompile(`[<>:"/\\|?*]`)
 	return invalidChars.ReplaceAllString(name, "")
+}
+
+func (fm *FileManager) DeleteTrackForUser(ctx context.Context, username string, trackID int64) error {
+	ctx = context.Background()
+	user, err := fm.queries.GetUserByUsername(ctx, username)
+	if err != nil {
+		return fmt.Errorf("error finding user '%s': %w", username, err)
+	}
+
+	track, err := fm.queries.GetTrackByID(ctx, trackID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("track with ID %d does not exist", trackID)
+		}
+		return fmt.Errorf("error finding track: %w", err)
+	}
+
+	// --- Filesystem Path Calculations ---
+	sanchoRoot := config.SanchoPath
+	userLibraryDir := filepath.Join(sanchoRoot, fmt.Sprintf("%s_library", user.Username))
+	globalLibraryDir := filepath.Join(sanchoRoot, "library")
+
+	relativeTrackPath, err := filepath.Rel(globalLibraryDir, track.FilePath)
+	if err != nil {
+		return fmt.Errorf("error calculating relative path: %w", err)
+	}
+	symlinkPath := filepath.Join(userLibraryDir, relativeTrackPath)
+	userAlbumDir := filepath.Dir(symlinkPath)
+	userArtistDir := filepath.Dir(userAlbumDir)
+
+	// --- User Library (Symlinks) Cleanup ---
+	if err := os.Remove(symlinkPath); err != nil {
+		return fmt.Errorf("could not remove symlink %s: %w", symlinkPath, err)
+	}
+
+	if err := removeDirIfEmpty(userAlbumDir); err != nil {
+		return fmt.Errorf("error cleaning user's album directory: %w", err)
+	}
+	if userArtistDir != userLibraryDir {
+		if err := removeDirIfEmpty(userArtistDir); err != nil {
+			return fmt.Errorf("error cleaning user's artist directory: %w", err)
+		}
+	}
+
+	// --- Database Transaction ---
+	tx, err := fm.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := fm.queries.WithTx(tx)
+
+	// 3. Delete the entry from the user_track table.
+	err = qtx.DeleteUserTrack(ctx, db.DeleteUserTrackParams{
+		UserID:  sql.NullInt64{Int64: user.ID, Valid: true},
+		TrackID: sql.NullInt64{Int64: trackID, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("error deleting user-track relationship: %w", err)
+	}
+
+	// 4. Check if any other users have the same track.
+	count, err := qtx.CountUsersForTrack(ctx, sql.NullInt64{Int64: trackID, Valid: true})
+	if err != nil {
+		return fmt.Errorf("error counting users for track: %w", err)
+	}
+
+	// 5. If no one else has the track, remove the physical file and database records.
+	if count == 0 {
+		// --- Global Library (Physical Files) Cleanup ---
+		globalAlbumDir := filepath.Dir(track.FilePath)
+		globalArtistDir := filepath.Dir(globalAlbumDir)
+
+		if err := os.Remove(track.FilePath); err != nil {
+			return fmt.Errorf("could not remove physical file %s: %w", err)
+		}
+
+		if err := removeDirIfEmpty(globalAlbumDir); err != nil {
+			return fmt.Errorf("error cleaning global album directory: %w", err)
+		}
+
+		if globalArtistDir != globalLibraryDir {
+			if err := removeDirIfEmpty(globalArtistDir); err != nil {
+				return fmt.Errorf("error cleaning global artist directory: %w", err)
+			}
+		}
+
+		if err := qtx.DeleteTrack(ctx, track.ID); err != nil {
+			return fmt.Errorf("error deleting track from database: %w", err)
+		}
+
+		// Clean up orphaned album and artist records.
+		if track.AlbumID.Valid {
+			albumTracks, _ := qtx.CountTracksInAlbum(ctx, track.AlbumID)
+			if albumTracks == 0 {
+				qtx.DeleteAlbum(ctx, track.AlbumID.Int64)
+			}
+		}
+		if track.ArtistID.Valid {
+			artistAlbums, _ := qtx.CountAlbumsByArtist(ctx, track.ArtistID.Int64)
+			if artistAlbums == 0 {
+				qtx.DeleteArtist(ctx, track.ArtistID.Int64)
+			}
+		}
+	}
+
+	return tx.Commit()
+}
+
+func removeDirIfEmpty(path string) error {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("could not read directory %s: %w", path, err)
+	}
+
+	if len(entries) == 0 {
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("could not remove empty directory %s: %w", path, err)
+		}
+	}
+
+	return nil
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 )
 
 func isDev() bool {
@@ -13,6 +14,7 @@ var (
 	SanchoPath   string
 	HttpPort     string
 	FrontendPath string
+	LibraryPath  string
 )
 
 func init() {
@@ -21,10 +23,12 @@ func init() {
 		SanchoPath = os.Getenv("SANCHO_PATH")
 		HttpPort = os.Getenv("HTTP_PORT")
 		FrontendPath = os.Getenv("FRONTEND_PATH")
+		LibraryPath = filepath.Join(SanchoPath, "library")
 	} else {
 		DBPath = "/data/database.sancho"
 		SanchoPath = "/sancho"
 		HttpPort = "5400"
 		FrontendPath = "/app/build"
+		LibraryPath = "/sancho/library"
 	}
 }

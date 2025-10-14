@@ -26,6 +26,33 @@ func (q *Queries) AddTrackToUser(ctx context.Context, arg AddTrackToUserParams) 
 	return err
 }
 
+const countUsersForTrack = `-- name: CountUsersForTrack :one
+SELECT COUNT(*) FROM user_track
+WHERE track_id = ?1
+`
+
+func (q *Queries) CountUsersForTrack(ctx context.Context, trackID sql.NullInt64) (int64, error) {
+	row := q.queryRow(ctx, q.countUsersForTrackStmt, countUsersForTrack, trackID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteUserTrack = `-- name: DeleteUserTrack :exec
+DELETE FROM user_track
+WHERE user_id = ?1 AND track_id = ?2
+`
+
+type DeleteUserTrackParams struct {
+	UserID  sql.NullInt64 `json:"user_id"`
+	TrackID sql.NullInt64 `json:"track_id"`
+}
+
+func (q *Queries) DeleteUserTrack(ctx context.Context, arg DeleteUserTrackParams) error {
+	_, err := q.exec(ctx, q.deleteUserTrackStmt, deleteUserTrack, arg.UserID, arg.TrackID)
+	return err
+}
+
 const getUserTrack = `-- name: GetUserTrack :one
 SELECT user_id, track_id, symlink_path, linked_date FROM user_track
 WHERE user_id = ?1 AND track_id = ?2
@@ -68,4 +95,60 @@ func (q *Queries) IsTrackLinkedToUserByUsernameAndISRC(ctx context.Context, arg 
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const listTracksByUsername = `-- name: ListTracksByUsername :many
+SELECT
+  t.id,
+  t.title,
+  t.duration,
+  art.name AS artist,
+  alb.title AS album,
+  alb.album_art_path
+FROM track AS t
+JOIN user_track AS ut ON t.id = ut.track_id
+JOIN "user" AS u ON ut.user_id = u.id
+LEFT JOIN artist AS art ON t.artist_id = art.id
+LEFT JOIN album AS alb ON t.album_id = alb.id
+WHERE u.username = ?
+ORDER BY art.name, alb.title, t.track_number
+`
+
+type ListTracksByUsernameRow struct {
+	ID           int64          `json:"id"`
+	Title        string         `json:"title"`
+	Duration     sql.NullInt64  `json:"duration"`
+	Artist       sql.NullString `json:"artist"`
+	Album        sql.NullString `json:"album"`
+	AlbumArtPath sql.NullString `json:"album_art_path"`
+}
+
+func (q *Queries) ListTracksByUsername(ctx context.Context, username string) ([]ListTracksByUsernameRow, error) {
+	rows, err := q.query(ctx, q.listTracksByUsernameStmt, listTracksByUsername, username)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTracksByUsernameRow{}
+	for rows.Next() {
+		var i ListTracksByUsernameRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Duration,
+			&i.Artist,
+			&i.Album,
+			&i.AlbumArtPath,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

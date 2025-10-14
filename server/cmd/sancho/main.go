@@ -47,18 +47,23 @@ func main() {
 	queries := db.New(conn)
 
 	// Inicializar servicios
-	fileMangerService := service.NewFileManager(queries)
+	fileMangerService := service.NewFileManager(conn, queries)
 	indexerService := service.NewIndexer(queries, fileMangerService)
 	proxyHandler := controller.NewProxyCORSHandler()
 	streamripService := service.NewStreamrip(indexerService, fileMangerService, queries)
+	thumbnailService := service.NewThumbnailService(queries)
 
 	// Inicializar handlers
 	downloadHandler := controller.NewMusicHandler(streamripService, indexerService, fileMangerService)
-	libraryHandler := controller.NewLibraryHandler(queries, indexerService)
+	libraryHandler := controller.NewLibraryHandler(queries, indexerService, fileMangerService, thumbnailService)
 	userHandler := controller.NewUserHandler(queries)
 
 	// Configurar router
 	router := gin.Default()
+
+	// Serve library files for album art
+	router.Static("/library", config.LibraryPath)
+
 	api.RegisterRoutes(router, proxyHandler, downloadHandler, libraryHandler, userHandler)
 	// ------------------------------------------
 

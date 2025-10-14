@@ -17,3 +17,11 @@ SELECT EXISTS (
 SELECT * FROM artist
 WHERE deezer_id = sqlc.arg('deezer_id')
 LIMIT 1;
+
+-- name: CountAlbumsByArtist :one
+SELECT COUNT(*) FROM album
+WHERE artist_id = sqlc.arg('artist_id');
+
+-- name: DeleteArtist :exec
+DELETE FROM artist
+WHERE id = sqlc.arg('id');

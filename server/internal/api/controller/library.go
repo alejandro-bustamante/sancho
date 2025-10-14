@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/gin-gonic/gin"
@@ -20,14 +22,18 @@ type LibraryIndexRequest struct {
 }
 
 type LibraryHandler struct {
-	queries        *db.Queries
-	indexerService Indexer
+	queries          *db.Queries
+	indexerService   Indexer
+	fileManager      FileManager
+	thumbnailService ThumbnailService
 }
 
-func NewLibraryHandler(q *db.Queries, s Indexer) *LibraryHandler {
+func NewLibraryHandler(q *db.Queries, s Indexer, f FileManager, t ThumbnailService) *LibraryHandler {
 	return &LibraryHandler{
-		queries:        q,
-		indexerService: s,
+		queries:          q,
+		indexerService:   s,
+		fileManager:      f,
+		thumbnailService: t,
 	}
 }
 
@@ -76,6 +82,50 @@ func (h *LibraryHandler) GetTracks(c *gin.Context) {
 	c.JSON(http.StatusOK, tracks)
 }
 
+func (h *LibraryHandler) GetUserTracks(c *gin.Context) {
+	username := c.Param("username")
+
+	tracks, err := h.queries.ListTracksByUsername(c.Request.Context(), username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error getting user tracks"})
+		return
+	}
+
+	if tracks == nil {
+		tracks = []db.ListTracksByUsernameRow{}
+	}
+
+	c.JSON(http.StatusOK, tracks)
+}
+
+func (h *LibraryHandler) StreamTrack(c *gin.Context) {
+	trackIDStr := c.Param("trackId")
+	trackID, err := strconv.ParseInt(trackIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid track ID"})
+		return
+	}
+
+	track, err := h.queries.GetTrackByID(c.Request.Context(), trackID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "track not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get track"})
+		return
+	}
+
+	if _, err := os.Stat(track.FilePath); os.IsNotExist(err) {
+		log.Printf("File not found for track %d: %s", trackID, track.FilePath)
+		c.JSON(http.StatusNotFound, gin.H{"error": "audio file not found"})
+		return
+	}
+
+	// Gin maneja Content-Type, Content-Length y peticiones de rango (seeking).
+	c.File(track.FilePath)
+}
+
 func (h *LibraryHandler) FindTrackInLibrary(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
@@ -90,4 +140,42 @@ func (h *LibraryHandler) FindTrackInLibrary(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, results)
+}
+
+func (h *LibraryHandler) DeleteTrackFromLibrary(c *gin.Context) {
+	username := c.Param("username")
+	trackIDStr := c.Param("trackId")
+
+	trackID, err := strconv.ParseInt(trackIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": " invalid song ID"})
+		return
+	}
+
+	ctx := context.Background()
+	err = h.fileManager.DeleteTrackForUser(ctx, username, trackID)
+	if err != nil {
+		log.Printf("Error al eliminar la canción: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar la canción", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Canción eliminada de la librería correctamente"})
+}
+
+func (h *LibraryHandler) GenerateAlbumThumbnails(c *gin.Context) {
+	h.thumbnailService.GenerateAlbumThumbnails()
+	c.JSON(http.StatusAccepted, gin.H{
+		"message": "Album thumbnail generation started in the background.",
+	})
+}
+
+func (h *LibraryHandler) GetThumbnailGenerationStatus(c *gin.Context) {
+	isRunning, processed, total, errMsg := h.thumbnailService.GetStatus()
+	c.JSON(http.StatusOK, gin.H{
+		"isRunning": isRunning,
+		"processed": processed,
+		"total":     total,
+		"error":     errMsg,
+	})
 }

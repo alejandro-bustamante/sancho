@@ -10,6 +10,16 @@ import (
 	"database/sql"
 )
 
+const deleteTrack = `-- name: DeleteTrack :exec
+DELETE FROM track
+WHERE id = ?1
+`
+
+func (q *Queries) DeleteTrack(ctx context.Context, id int64) error {
+	_, err := q.exec(ctx, q.deleteTrackStmt, deleteTrack, id)
+	return err
+}
+
 const getAlbumByTrackID = `-- name: GetAlbumByTrackID :one
 SELECT album.id, album.deezer_id, album.title, album.normalized_title, album.artist_id, album.release_date, album.album_art_path, album.genre, album.total_tracks, album.created_at FROM track
 JOIN album ON track.album_id = album.id
@@ -48,6 +58,36 @@ func (q *Queries) GetArtistByTrackID(ctx context.Context, trackID int64) (Artist
 		&i.DeezerID,
 		&i.Name,
 		&i.NormalizedName,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getFirstTrackByAlbumID = `-- name: GetFirstTrackByAlbumID :one
+SELECT id, title, normalized_title, artist_id, album_id, duration, track_number, disc_number, sample_rate, bitrate, channels, file_path, file_size, isrc, composer, created_at FROM track
+WHERE album_id = ?1
+LIMIT 1
+`
+
+func (q *Queries) GetFirstTrackByAlbumID(ctx context.Context, albumID sql.NullInt64) (Track, error) {
+	row := q.queryRow(ctx, q.getFirstTrackByAlbumIDStmt, getFirstTrackByAlbumID, albumID)
+	var i Track
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.NormalizedTitle,
+		&i.ArtistID,
+		&i.AlbumID,
+		&i.Duration,
+		&i.TrackNumber,
+		&i.DiscNumber,
+		&i.SampleRate,
+		&i.Bitrate,
+		&i.Channels,
+		&i.FilePath,
+		&i.FileSize,
+		&i.Isrc,
+		&i.Composer,
 		&i.CreatedAt,
 	)
 	return i, err
