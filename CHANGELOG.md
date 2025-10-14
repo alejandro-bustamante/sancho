@@ -13,3 +13,7 @@
 ## [v1.2.1] - 2025-10-13
 
 - Fixed error with the backend IP.
+
+## [v1.2.2] - 2025-10-13
+
+- Fixed another error with the backend IP.
