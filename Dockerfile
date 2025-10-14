@@ -61,6 +61,7 @@ COPY client/package.json client/package-lock.json* client/.npmrc ./
 # Use `ci` for reproducible builds in CI environments
 RUN npm cache clean --force && npm ci
 COPY client ./
+ENV PUBLIC_API_IP=$PUBLIC_API_IP
 RUN npm run build
 
 # =========================

@@ -2,6 +2,8 @@
 	import { selectedUser, notifications } from '$lib/stores/stores';
 	import { currentUser, isClientReady } from '$lib/stores/auth';
 	import type { Track } from '$lib/stores/types';
+	import { onMount } from 'svelte';
+	import { API_IP } from '$lib/config';
 
 	export let track: Track;
 
@@ -22,7 +24,7 @@
 		isLoadingSample = true;
 
 		try {
-			const res = await fetch(`http://localhost:5400/api/search/${track.isrc}/sample`);
+			const res = await fetch(`${API_IP}/api/search/${track.isrc}/sample`);
 			const data = await res.json();
 			if (!res.ok || !data.sample_url) throw new Error(data.error || 'Error al obtener muestra');
 			sampleUrl = data.sample_url;

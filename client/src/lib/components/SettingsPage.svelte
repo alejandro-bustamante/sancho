@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { API_IP } from '$lib/config';
 	import { notifications } from '$lib/stores/notifications';
 
 	let isRunning = false;
@@ -10,7 +11,7 @@
 
 	async function getStatus() {
 		try {
-			const res = await fetch(`http://localhost:5400/api/library/thumbnails/status`);
+			const res = await fetch(`${API_IP}/api/library/thumbnails/status`);
 			if (!res.ok) {
 				throw new Error('Failed to fetch status');
 			}
