@@ -53,7 +53,18 @@ RUN ./configure \
 RUN strip /opt/ffmpeg/bin/ffmpeg
 
 # =========================
-# Etapa 2: Build Go binary
+# Etapa 2: Build Frontend (Svelte)
+# =========================
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app
+COPY client/package.json client/package-lock.json* client/.npmrc ./
+# Use `ci` for reproducible builds in CI environments
+RUN npm cache clean --force && npm ci
+COPY client ./
+RUN npm run build
+
+# =========================
+# Etapa 3: Build Go binary
 # =========================
 FROM golang:1.24.4-alpine3.22 AS go-builder
 RUN apk add --no-cache gcc musl-dev
@@ -64,7 +75,7 @@ COPY server ./
 RUN go build -o /bin/sancho ./cmd/sancho
 
 # =========================
-# Etapa 3: Preparar streamrip
+# Etapa 4: Preparar streamrip
 # =========================
 FROM python:3.12-alpine3.22 AS streamrip-builder
 RUN apk add --no-cache git gcc musl-dev libffi-dev openssl-dev curl
@@ -110,7 +121,7 @@ COPY config.template.toml /root/.config/streamrip/config.template.toml
 WORKDIR /app
 
 COPY --from=go-builder /bin/sancho /usr/local/bin/sancho
-COPY client/build ./build
+COPY --from=frontend-builder /app/build ./build
 COPY server/migrations ./migrations
 COPY --from=streamrip-builder /src/streamrip/requirements.txt /tmp/requirements.txt
 COPY --from=streamrip-builder /src/streamrip/dist/*.whl /tmp/
