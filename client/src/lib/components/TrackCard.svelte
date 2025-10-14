@@ -71,7 +71,7 @@
 		]);
 
 		try {
-			const res = await fetch(`http://localhost:5400/api/downloads`, {
+			const res = await fetch(`${API_IP}/api/downloads`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -119,7 +119,7 @@
 
 		const interval = setInterval(async () => {
 			try {
-				const res = await fetch(`http://localhost:5400/api/downloads/${downloadId}/status`);
+				const res = await fetch(`${API_IP}/api/downloads/${downloadId}/status`);
 				if (!res.ok) throw new Error(`Error ${res.status}`);
 				const data = await res.json();
 				const status = data.status;

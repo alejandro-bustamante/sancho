@@ -46,7 +46,7 @@
 
 	async function startGeneration() {
 		try {
-			const res = await fetch(`http://localhost:5400/api/library/thumbnails`, { method: 'POST' });
+			const res = await fetch(`${API_IP}/api/library/thumbnails`, { method: 'POST' });
 			if (!res.ok) {
 				throw new Error('Failed to start generation process');
 			}

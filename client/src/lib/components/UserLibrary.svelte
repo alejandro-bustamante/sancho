@@ -52,7 +52,7 @@
 		const pathParts = path.split('/library/');
 		if (pathParts.length > 1) {
 			const relativePath = pathParts[1];
-			return `http://localhost:5400/library/${relativePath}`;
+			return `${API_IP}/library/${relativePath}`;
 		}
 		return '';
 	}
@@ -74,7 +74,7 @@
 		if (!confirm('¿Estás seguro de que quieres eliminar esta canción de tu librería?')) return;
 
 		try {
-			const res = await fetch(`http://localhost:5400/api/users/${user}/tracks/${trackId}`, {
+			const res = await fetch(`${API_IP}/api/users/${user}/tracks/${trackId}`, {
 				method: 'DELETE'
 			});
 
