@@ -18,6 +18,6 @@
 
 - Fixed another error with the backend IP.
 
-## [v1.2.2] - 2025-10-13
+## [v1.2.3] - 2025-10-25
 
 - Fixed wrong calls to LinkTrackToUser function
