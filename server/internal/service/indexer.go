@@ -358,7 +358,7 @@ func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, servic
 
 			track, err := x.queries.GetTrackByID(ctx, trackID)
 			trackModel := model.TrackFromDB(track)
-			_, err = x.fileManager.LinkTrackToUser(ctx, user, *trackModel.ISRC)
+			_, err = x.fileManager.LinkTrackToUser(ctx, *trackModel.ISRC, user)
 			if err != nil {
 				return fmt.Errorf("error linking track to user: %w", err)
 			}
@@ -395,7 +395,7 @@ func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, servic
 		return fmt.Errorf("error moving track to library: %w", err)
 	}
 
-	_, err = x.fileManager.LinkTrackToUser(ctx, user, *trackModel.ISRC)
+	_, err = x.fileManager.LinkTrackToUser(ctx, *trackModel.ISRC, user)
 	if err != nil {
 		return fmt.Errorf("error linking track to user: %w", err)
 	}
