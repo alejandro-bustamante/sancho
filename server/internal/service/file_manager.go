@@ -10,18 +10,16 @@ import (
 
 	"github.com/alejandro-bustamante/sancho/server/internal/config"
 	model "github.com/alejandro-bustamante/sancho/server/internal/model"
-	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
+	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 )
 
 type FileManager struct {
-	db      *sql.DB
-	queries *db.Queries
+	db repository.Database
 }
 
-func NewFileManager(db *sql.DB, queries *db.Queries) *FileManager {
+func NewFileManager(db repository.Database) *FileManager {
 	return &FileManager{
-		db:      db,
-		queries: queries,
+		db: db,
 	}
 }
 
@@ -50,7 +48,7 @@ func (fm *FileManager) renameTrack(ctx context.Context, track model.Track, artis
 		return "", fmt.Errorf("error renaming file: %w", err)
 	}
 
-	err := fm.queries.UpdateTrackFilePath(ctx, db.UpdateTrackFilePathParams{
+	err := fm.db.UpdateTrackFilePath(ctx, repository.UpdateTrackFilePathParams{
 		FilePath: newPath,
 		TrackID:  track.ID,
 	})
@@ -76,11 +74,11 @@ func (fm *FileManager) moveTrackToLibrary(ctx context.Context, track model.Track
 	sanchoRoot := config.SanchoPath
 	libraryRoot := filepath.Join(sanchoRoot, "library")
 
-	artist, err := fm.queries.GetArtistByTrackID(ctx, track.ID)
+	artist, err := fm.db.GetArtistByTrackID(ctx, track.ID)
 	if err != nil {
 		return "", fmt.Errorf("error fetching artist: %w", err)
 	}
-	album, err := fm.queries.GetAlbumByTrackID(ctx, track.ID)
+	album, err := fm.db.GetAlbumByTrackID(ctx, track.ID)
 	if err != nil {
 		return "", fmt.Errorf("error fetching album: %w", err)
 	}
@@ -100,7 +98,7 @@ func (fm *FileManager) moveTrackToLibrary(ctx context.Context, track model.Track
 		return "", fmt.Errorf("error moving file to library: %w", err)
 	}
 
-	err = fm.queries.UpdateTrackFilePath(ctx, db.UpdateTrackFilePathParams{
+	err = fm.db.UpdateTrackFilePath(ctx, repository.UpdateTrackFilePathParams{
 		FilePath: newPath,
 		TrackID:  track.ID,
 	})
@@ -116,12 +114,12 @@ func (fm *FileManager) LinkTrackToUser(ctx context.Context, isrc, user string) (
 	ctx = context.Background()
 	isrcNull := sql.NullString{String: isrc, Valid: true}
 
-	trackDB, err := fm.queries.SearchTracksByISRC(ctx, isrcNull)
+	trackDB, err := fm.db.SearchTracksByISRC(ctx, isrcNull)
 	if err != nil {
 		return "", fmt.Errorf("error searching for track: %w", err)
 	}
 
-	artist, err := fm.queries.GetArtistByTrackID(ctx, trackDB.ID)
+	artist, err := fm.db.GetArtistByTrackID(ctx, trackDB.ID)
 	if err != nil {
 		return "", fmt.Errorf("error fetching artist: %w", err)
 	}
@@ -165,16 +163,16 @@ func (fm *FileManager) LinkTrackToUser(ctx context.Context, isrc, user string) (
 		return "", fmt.Errorf("error creating symlink: %w", err)
 	}
 
-	userDB, err := fm.queries.GetUserByUsername(ctx, user)
+	userDB, err := fm.db.GetUserByUsername(ctx, user)
 	if err != nil {
 		return "", fmt.Errorf("error searching user in the DB: %w", err)
 	}
-	trackUserParams := db.AddTrackToUserParams{
+	trackUserParams := repository.AddTrackToUserParams{
 		UserID:      sql.NullInt64{Int64: userDB.ID, Valid: userDB.ID > 0},
 		TrackID:     sql.NullInt64{Int64: trackDB.ID, Valid: trackDB.ID > 0},
 		SymlinkPath: relativeSymlinkTarget, // <-- aquí se guarda el path RELATIVO
 	}
-	err = fm.queries.AddTrackToUser(ctx, trackUserParams)
+	err = fm.db.AddTrackToUser(ctx, trackUserParams)
 	if err != nil {
 		return "", fmt.Errorf("error adding row to user_track table: %w", err)
 	}
@@ -189,13 +187,15 @@ func sanitizeFilename(name string) string {
 }
 
 func (fm *FileManager) DeleteTrackForUser(ctx context.Context, username string, trackID int64) error {
+	// Temporal empty context to avoid timeouts
 	ctx = context.Background()
-	user, err := fm.queries.GetUserByUsername(ctx, username)
+
+	user, err := fm.db.GetUserByUsername(ctx, username)
 	if err != nil {
 		return fmt.Errorf("error finding user '%s': %w", username, err)
 	}
 
-	track, err := fm.queries.GetTrackByID(ctx, trackID)
+	track, err := fm.db.GetTrackByID(ctx, trackID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("track with ID %d does not exist", trackID)
@@ -217,6 +217,7 @@ func (fm *FileManager) DeleteTrackForUser(ctx context.Context, username string, 
 	userArtistDir := filepath.Dir(userAlbumDir)
 
 	// --- User Library (Symlinks) Cleanup ---
+	// We remove symlinks first.
 	if err := os.Remove(symlinkPath); err != nil {
 		return fmt.Errorf("could not remove symlink %s: %w", symlinkPath, err)
 	}
@@ -230,70 +231,81 @@ func (fm *FileManager) DeleteTrackForUser(ctx context.Context, username string, 
 		}
 	}
 
+	// Flag to determine if we need to clean up physical files after the transaction
+	shouldDeletePhysicalFiles := false
+
 	// --- Database Transaction ---
-	tx, err := fm.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("could not begin transaction: %w", err)
-	}
-	defer tx.Rollback()
+	// Using ExecTx to automatically handle Commit/Rollback logic
+	err = fm.db.ExecTx(ctx, func(qtx repository.Database) error {
+		// 3. Delete the entry from the user_track table.
+		err = qtx.DeleteUserTrack(ctx, repository.DeleteUserTrackParams{
+			UserID:  sql.NullInt64{Int64: user.ID, Valid: true},
+			TrackID: sql.NullInt64{Int64: trackID, Valid: true},
+		})
+		if err != nil {
+			return fmt.Errorf("error deleting user-track relationship: %w", err)
+		}
 
-	qtx := fm.queries.WithTx(tx)
+		// 4. Check if any other users have the same track.
+		count, err := qtx.CountUsersForTrack(ctx, sql.NullInt64{Int64: trackID, Valid: true})
+		if err != nil {
+			return fmt.Errorf("error counting users for track: %w", err)
+		}
 
-	// 3. Delete the entry from the user_track table.
-	err = qtx.DeleteUserTrack(ctx, db.DeleteUserTrackParams{
-		UserID:  sql.NullInt64{Int64: user.ID, Valid: true},
-		TrackID: sql.NullInt64{Int64: trackID, Valid: true},
+		// 5. If no one else has the track, remove database records and mark files for deletion.
+		if count == 0 {
+			shouldDeletePhysicalFiles = true
+
+			if err := qtx.DeleteTrack(ctx, track.ID); err != nil {
+				return fmt.Errorf("error deleting track from database: %w", err)
+			}
+
+			// Clean up orphaned album and artist records.
+			if track.AlbumID.Valid {
+				albumTracks, _ := qtx.CountTracksInAlbum(ctx, track.AlbumID)
+				if albumTracks == 0 {
+					qtx.DeleteAlbum(ctx, track.AlbumID.Int64)
+				}
+			}
+			if track.ArtistID.Valid {
+				artistAlbums, _ := qtx.CountAlbumsByArtist(ctx, track.ArtistID.Int64)
+				if artistAlbums == 0 {
+					qtx.DeleteArtist(ctx, track.ArtistID.Int64)
+				}
+			}
+		}
+
+		return nil
 	})
+
 	if err != nil {
-		return fmt.Errorf("error deleting user-track relationship: %w", err)
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
-	// 4. Check if any other users have the same track.
-	count, err := qtx.CountUsersForTrack(ctx, sql.NullInt64{Int64: trackID, Valid: true})
-	if err != nil {
-		return fmt.Errorf("error counting users for track: %w", err)
-	}
-
-	// 5. If no one else has the track, remove the physical file and database records.
-	if count == 0 {
-		// --- Global Library (Physical Files) Cleanup ---
+	// --- Global Library (Physical Files) Cleanup ---
+	// Performed ONLY after successful DB commit to prevent data loss (deleted file but existing DB record)
+	if shouldDeletePhysicalFiles {
 		globalAlbumDir := filepath.Dir(track.FilePath)
 		globalArtistDir := filepath.Dir(globalAlbumDir)
 
 		if err := os.Remove(track.FilePath); err != nil {
-			return fmt.Errorf("could not remove physical file %s: %w", err)
-		}
-
-		if err := removeDirIfEmpty(globalAlbumDir); err != nil {
-			return fmt.Errorf("error cleaning global album directory: %w", err)
-		}
-
-		if globalArtistDir != globalLibraryDir {
-			if err := removeDirIfEmpty(globalArtistDir); err != nil {
-				return fmt.Errorf("error cleaning global artist directory: %w", err)
+			// We log the error but don't return it, as the business operation (DB) was successful.
+			fmt.Printf("Warning: could not remove physical file %s: %v\n", track.FilePath, err)
+		} else {
+			// Only try to clean dirs if file removal was successful
+			if err := removeDirIfEmpty(globalAlbumDir); err != nil {
+				fmt.Printf("Warning: error cleaning global album directory: %v\n", err)
 			}
-		}
 
-		if err := qtx.DeleteTrack(ctx, track.ID); err != nil {
-			return fmt.Errorf("error deleting track from database: %w", err)
-		}
-
-		// Clean up orphaned album and artist records.
-		if track.AlbumID.Valid {
-			albumTracks, _ := qtx.CountTracksInAlbum(ctx, track.AlbumID)
-			if albumTracks == 0 {
-				qtx.DeleteAlbum(ctx, track.AlbumID.Int64)
-			}
-		}
-		if track.ArtistID.Valid {
-			artistAlbums, _ := qtx.CountAlbumsByArtist(ctx, track.ArtistID.Int64)
-			if artistAlbums == 0 {
-				qtx.DeleteArtist(ctx, track.ArtistID.Int64)
+			if globalArtistDir != globalLibraryDir {
+				if err := removeDirIfEmpty(globalArtistDir); err != nil {
+					fmt.Printf("Warning: error cleaning global artist directory: %v\n", err)
+				}
 			}
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func removeDirIfEmpty(path string) error {

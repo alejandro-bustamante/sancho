@@ -14,20 +14,20 @@ import (
 	"time"
 
 	model "github.com/alejandro-bustamante/sancho/server/internal/model"
-	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
+	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	tag "go.senan.xyz/taglib"
 )
 
 type Indexer struct {
-	queries     *db.Queries
+	db          repository.Database
 	fileManager *FileManager
 }
 
-func NewIndexer(queries *db.Queries, fileManager *FileManager) *Indexer {
+func NewIndexer(db repository.Database, fileManager *FileManager) *Indexer {
 	return &Indexer{
-		queries:     queries,
+		db:          db,
 		fileManager: fileManager,
 	}
 }
@@ -104,13 +104,13 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 
 	// Verify is the song is not downloaded already
 	// This is checked by streamrip service on download, but here for external songs
-	existsInt, err := x.queries.TrackExistsByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
+	existsInt, err := x.db.TrackExistsByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
 	if err != nil {
 		return 0, fmt.Errorf("error checking for the song in the database: %w", err)
 	}
 	trackExists := existsInt == 1
 	if trackExists {
-		trackFound, err := x.queries.SearchTracksByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
+		trackFound, err := x.db.SearchTracksByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
 		if err != nil {
 			return 0, fmt.Errorf("Inconsistency, found a song matching ISRC and now cant find it: %w", err)
 		}
@@ -140,19 +140,19 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 		if err != nil {
 			return 0, fmt.Errorf("error normalizing artists name: %w", err)
 		}
-		artistParams := db.InsertArtistParams{
+		artistParams := repository.InsertArtistParams{
 			DeezerID:       sql.NullString{String: strconv.Itoa(deezerIDs.ArtistID), Valid: true},
 			Name:           get(tag.Artist),
 			NormalizedName: normalizedArtistName,
 		}
-		artist, err := x.queries.InsertArtist(ctx, artistParams)
+		artist, err := x.db.InsertArtist(ctx, artistParams)
 		if err != nil {
 			return 0, fmt.Errorf("error inserting artist into the db %w", err)
 		}
 		artistID = artist.ID
 	} else { // If there is artist we search it and store its ID
 		deeezerArtistID := sql.NullString{String: strconv.Itoa(deezerIDs.ArtistID), Valid: true}
-		artist, err := x.queries.GetArtistByDeezerID(ctx, deeezerArtistID)
+		artist, err := x.db.GetArtistByDeezerID(ctx, deeezerArtistID)
 		if err != nil {
 			return 0, fmt.Errorf("error searching artist in the db %w", err)
 		}
@@ -175,7 +175,7 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 
 		releaseDate := get(tag.Date)
 		genre := get(tag.Genre)
-		albumParams := db.InsertAlbumParams{
+		albumParams := repository.InsertAlbumParams{
 			DeezerID:        sql.NullString{String: strconv.Itoa(deezerIDs.AlbumID), Valid: true},
 			Title:           get(tag.Album),
 			NormalizedTitle: normalizedAlbumName,
@@ -185,14 +185,14 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 			Genre:           sql.NullString{String: genre, Valid: genre != ""},
 			TotalTracks:     sql.NullInt64{Int64: int64(totalTracks), Valid: totalTracks > 0},
 		}
-		album, err := x.queries.InsertAlbum(ctx, albumParams)
+		album, err := x.db.InsertAlbum(ctx, albumParams)
 		if err != nil {
 			return 0, fmt.Errorf("error inserting album into the db %w", err)
 		}
 		albumID = album.ID
 	} else {
 		deeezerAlbumID := sql.NullString{String: strconv.Itoa(deezerIDs.AlbumID), Valid: true}
-		album, err := x.queries.GetAlbumByDeezerID(ctx, deeezerAlbumID)
+		album, err := x.db.GetAlbumByDeezerID(ctx, deeezerAlbumID)
 		if err != nil {
 			return 0, fmt.Errorf("error searching artist in the db %w", err)
 		}
@@ -210,7 +210,7 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 		return 0, fmt.Errorf("error normalizing albums name: %w", err)
 	}
 
-	params := db.InsertTrackParams{
+	params := repository.InsertTrackParams{
 		Title:           title,
 		NormalizedTitle: normalizedTrackName,
 		ArtistID:        sql.NullInt64{Int64: artistID, Valid: artistID > 0},
@@ -226,7 +226,7 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 		Isrc:            sql.NullString{String: isrc, Valid: isrc != ""},
 		Composer:        sql.NullString{String: composer, Valid: composer != ""},
 	}
-	track, err := x.queries.InsertTrack(ctx, params)
+	track, err := x.db.InsertTrack(ctx, params)
 	if err != nil {
 		return 0, fmt.Errorf("error storing track: %w", err)
 	}
@@ -236,7 +236,7 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 }
 
 func (x *Indexer) isArtistInDB(ctx context.Context, deezerID string) (bool, error) {
-	existsInt, err := x.queries.ArtistExistsByDeezerID(ctx, sql.NullString{String: deezerID, Valid: true})
+	existsInt, err := x.db.ArtistExistsByDeezerID(ctx, sql.NullString{String: deezerID, Valid: true})
 	if err != nil {
 		return false, fmt.Errorf("db error checking artist existence: %w", err)
 	}
@@ -244,7 +244,7 @@ func (x *Indexer) isArtistInDB(ctx context.Context, deezerID string) (bool, erro
 }
 
 func (x *Indexer) isAlbumInDB(ctx context.Context, deezerID string) (bool, error) {
-	existsInt, err := x.queries.AlbumExistsByDeezerID(ctx, sql.NullString{String: deezerID, Valid: true})
+	existsInt, err := x.db.AlbumExistsByDeezerID(ctx, sql.NullString{String: deezerID, Valid: true})
 	if err != nil {
 		return false, fmt.Errorf("db error checking album existence: %w", err)
 	}
@@ -334,7 +334,7 @@ func (x *Indexer) isAudioFile(path string) bool {
 func (x *Indexer) IsTrackInLibrary(ctx context.Context, isrc string) (bool, error) {
 	ctx = context.Background()
 
-	existsInt, err := x.queries.TrackExistsByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
+	existsInt, err := x.db.TrackExistsByISRC(ctx, sql.NullString{String: isrc, Valid: isrc != ""})
 	if err != nil {
 		return false, fmt.Errorf("db error checking track existence: %w", err)
 
@@ -356,7 +356,7 @@ func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, servic
 		if errors.As(err, &trackExistsErr) {
 			log.Printf("song found already in the db, just linkin to user")
 
-			track, err := x.queries.GetTrackByID(ctx, trackID)
+			track, err := x.db.GetTrackByID(ctx, trackID)
 			trackModel := model.TrackFromDB(track)
 			_, err = x.fileManager.LinkTrackToUser(ctx, *trackModel.ISRC, user)
 			if err != nil {
@@ -369,16 +369,13 @@ func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, servic
 		return fmt.Errorf("failed to index file: %w", err)
 
 	}
-	if err != nil {
-		return fmt.Errorf("indexing error: %w", err)
-	}
 
-	track, err := x.queries.GetTrackByID(ctx, trackID)
+	track, err := x.db.GetTrackByID(ctx, trackID)
 	if err != nil {
 		return fmt.Errorf("could not fetch track after indexing: %w", err)
 	}
 
-	artist, err := x.queries.GetArtistByTrackID(ctx, trackID)
+	artist, err := x.db.GetArtistByTrackID(ctx, trackID)
 	if err != nil {
 		return fmt.Errorf("error fetching artist: %w", err)
 	}
@@ -412,7 +409,7 @@ func (x *Indexer) saveTransferHistory(
 	quality int,
 ) {
 	ctx = context.Background()
-	userData, err := x.queries.GetUserByUsername(ctx, user)
+	userData, err := x.db.GetUserByUsername(ctx, user)
 	if err != nil {
 		log.Printf("Could not find the user %s: %v", user, err)
 		return
@@ -420,7 +417,7 @@ func (x *Indexer) saveTransferHistory(
 	downloadID := uuid.New().String()
 	status := string(model.StatusTransfered)
 
-	params := db.InsertDownloadHistoryParams{
+	params := repository.InsertDownloadHistoryParams{
 		ID:          downloadID,
 		UserID:      sql.NullInt64{Int64: userData.ID, Valid: userData.ID > 0},
 		TrackID:     sql.NullInt64{Int64: trackID, Valid: trackID > 0},
@@ -430,7 +427,7 @@ func (x *Indexer) saveTransferHistory(
 		CompletedAt: sql.NullTime{Time: time.Now().UTC(), Valid: true},
 	}
 
-	_, err = x.queries.InsertDownloadHistory(ctx, params)
+	_, err = x.db.InsertDownloadHistory(ctx, params)
 	if err != nil {
 		log.Printf("Error guardando historial de descarga: %v", err)
 	}

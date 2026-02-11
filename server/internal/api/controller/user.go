@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	model "github.com/alejandro-bustamante/sancho/server/internal/model"
-	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
+	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,12 +21,12 @@ type AuthenticateUserRequest struct {
 }
 
 type UserHandler struct {
-	queries *db.Queries
+	db repository.Database
 }
 
-func NewUserHandler(q *db.Queries) *UserHandler {
+func NewUserHandler(db repository.Database) *UserHandler {
 	return &UserHandler{
-		queries: q,
+		db: db,
 	}
 
 }
@@ -39,12 +39,12 @@ func (h *UserHandler) RegisterUser(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 
-	userParams := db.InsertUserParams{
+	userParams := repository.InsertUserParams{
 		Username:     req.Username,
 		PasswordHash: hashPassword(req.Password),
 		Email:        sql.NullString{String: req.Email, Valid: req.Email != ""},
 	}
-	userDB, err := h.queries.InsertUser(ctx, userParams)
+	userDB, err := h.db.InsertUser(ctx, userParams)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Could not register new user in the database", "details": err.Error()})
 		return
@@ -67,7 +67,7 @@ func (h *UserHandler) AuthenticateUser(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	userDB, err := h.queries.GetUserByUsername(ctx, req.Username)
+	userDB, err := h.db.GetUserByUsername(ctx, req.Username)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Error searching user in the database", "details": err.Error()})
 		return

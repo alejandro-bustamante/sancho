@@ -44,10 +44,10 @@ func main() {
 	if err := conn.Ping(); err != nil {
 		log.Fatalf("Error conectando a la base de datos: %v", err)
 	}
-	queries := db.New(conn)
+	queries := db.NewDatabase(conn)
 
 	// Inicializar servicios
-	fileMangerService := service.NewFileManager(conn, queries)
+	fileMangerService := service.NewFileManager(queries)
 	indexerService := service.NewIndexer(queries, fileMangerService)
 	proxyHandler := controller.NewProxyCORSHandler()
 	streamripService := service.NewStreamrip(indexerService, fileMangerService, queries)

@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	model "github.com/alejandro-bustamante/sancho/server/internal/model"
-	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
+	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/google/uuid"
 )
 
@@ -70,15 +70,15 @@ type Streamrip struct {
 	tracker     *DownloadTracker
 	indexer     *Indexer
 	fileManager *FileManager
-	queries     *db.Queries
+	db          repository.Database
 }
 
-func NewStreamrip(indexer *Indexer, fileManager *FileManager, queries *db.Queries) *Streamrip {
+func NewStreamrip(indexer *Indexer, fileManager *FileManager, queries repository.Database) *Streamrip {
 	return &Streamrip{
 		tracker:     NewDownloadTracker(),
 		indexer:     indexer,
 		fileManager: fileManager,
-		queries:     queries,
+		db:          queries,
 	}
 }
 
@@ -92,11 +92,11 @@ func (s *Streamrip) EnsureTrackForUser(ctx context.Context, songID, user, isrc s
 		return nil, err
 	}
 	// Check if already linked
-	trackLinkedParams := db.IsTrackLinkedToUserByUsernameAndISRCParams{
+	trackLinkedParams := repository.IsTrackLinkedToUserByUsernameAndISRCParams{
 		Username: user,
 		Isrc:     sql.NullString{String: isrc, Valid: isrc != ""},
 	}
-	isLinkedInt, err := s.queries.IsTrackLinkedToUserByUsernameAndISRC(context.Background(), trackLinkedParams)
+	isLinkedInt, err := s.db.IsTrackLinkedToUserByUsernameAndISRC(context.Background(), trackLinkedParams)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (s *Streamrip) EnsureTrackForUser(ctx context.Context, songID, user, isrc s
 		}
 
 		s.tracker.SetStatus(downloadID, model.StatusSuccess)
-		track, err := s.queries.SearchTracksByISRC(context.Background(), sql.NullString{String: isrc, Valid: isrc != ""})
+		track, err := s.db.SearchTracksByISRC(context.Background(), sql.NullString{String: isrc, Valid: isrc != ""})
 		if err != nil && err != sql.ErrNoRows {
 			return nil, fmt.Errorf("error searching for the song by ISRC in the DB: %w", err)
 		}
@@ -264,13 +264,13 @@ func (s *Streamrip) saveDownloadHistory(
 	errorMsg string,
 ) {
 	ctx = context.Background()
-	userData, err := s.queries.GetUserByUsername(ctx, user)
+	userData, err := s.db.GetUserByUsername(ctx, user)
 	if err != nil {
 		log.Printf("Could not find the user %s: %v", user, err)
 		return
 	}
 
-	params := db.InsertDownloadHistoryParams{
+	params := repository.InsertDownloadHistoryParams{
 		ID:      downloadID,
 		UserID:  sql.NullInt64{Int64: userData.ID, Valid: userData.ID > 0},
 		Status:  sql.NullString{String: status, Valid: status != ""},
@@ -288,7 +288,7 @@ func (s *Streamrip) saveDownloadHistory(
 		params.Quality = sql.NullInt64{Int64: quality, Valid: true}
 	}
 
-	_, err = s.queries.InsertDownloadHistory(ctx, params)
+	_, err = s.db.InsertDownloadHistory(ctx, params)
 	if err != nil {
 		log.Printf("Error guardando historial de descarga: %v", err)
 	}

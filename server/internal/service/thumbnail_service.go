@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
+	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 )
 
 // ThumbnailGenerationTracker holds the state of the generation process.
@@ -21,13 +21,13 @@ type ThumbnailGenerationTracker struct {
 }
 
 type ThumbnailService struct {
-	queries *db.Queries
+	db      repository.Database
 	tracker *ThumbnailGenerationTracker
 }
 
-func NewThumbnailService(queries *db.Queries) *ThumbnailService {
+func NewThumbnailService(db repository.Database) *ThumbnailService {
 	return &ThumbnailService{
-		queries: queries,
+		db:      db,
 		tracker: &ThumbnailGenerationTracker{},
 	}
 }
@@ -60,7 +60,7 @@ func (s *ThumbnailService) GenerateAlbumThumbnails() {
 
 		ctx := context.Background()
 
-		albums, err := s.queries.GetAlbumsWithoutArt(ctx)
+		albums, err := s.db.GetAlbumsWithoutArt(ctx)
 		if err != nil {
 			log.Printf("Error fetching albums without art: %v", err)
 			s.tracker.Lock()
@@ -74,7 +74,7 @@ func (s *ThumbnailService) GenerateAlbumThumbnails() {
 		s.tracker.Unlock()
 
 		for _, album := range albums {
-			track, err := s.queries.GetFirstTrackByAlbumID(ctx, sql.NullInt64{Int64: album.ID, Valid: true})
+			track, err := s.db.GetFirstTrackByAlbumID(ctx, sql.NullInt64{Int64: album.ID, Valid: true})
 			if err != nil {
 				log.Printf("Could not find a track for album ID %d (%s). Marking as processed. Error: %v", album.ID, album.Title, err)
 				s.updateAlbumArtPath(ctx, album.ID, "/dev/null")
@@ -103,11 +103,11 @@ func (s *ThumbnailService) GenerateAlbumThumbnails() {
 }
 
 func (s *ThumbnailService) updateAlbumArtPath(ctx context.Context, albumID int64, path string) {
-	updateParams := db.UpdateAlbumArtPathParams{
+	updateParams := repository.UpdateAlbumArtPathParams{
 		ID:           albumID,
 		AlbumArtPath: sql.NullString{String: path, Valid: true},
 	}
-	if err := s.queries.UpdateAlbumArtPath(ctx, updateParams); err != nil {
+	if err := s.db.UpdateAlbumArtPath(ctx, updateParams); err != nil {
 		log.Printf("Failed to update album art path for album ID %d: %v", albumID, err)
 	}
 }
