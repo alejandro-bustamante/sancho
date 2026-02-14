@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,15 +21,15 @@ type LibraryIndexRequest struct {
 }
 
 type LibraryHandler struct {
-	db               repository.Database
+	libraryService   LibraryService
 	indexerService   Indexer
 	fileManager      FileManager
 	thumbnailService ThumbnailService
 }
 
-func NewLibraryHandler(db repository.Database, s Indexer, f FileManager, t ThumbnailService) *LibraryHandler {
+func NewLibraryHandler(lib LibraryService, s Indexer, f FileManager, t ThumbnailService) *LibraryHandler {
 	return &LibraryHandler{
-		db:               db,
+		libraryService:   lib,
 		indexerService:   s,
 		fileManager:      f,
 		thumbnailService: t,
@@ -74,7 +73,8 @@ func (h *LibraryHandler) IndexFolder(c *gin.Context) {
 }
 
 func (h *LibraryHandler) GetTracks(c *gin.Context) {
-	tracks, err := h.db.ListTracksByDate(c.Request.Context())
+	// Uso del servicio
+	tracks, err := h.libraryService.GetAllTracks(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while getting the tracks"})
 		return
@@ -85,14 +85,10 @@ func (h *LibraryHandler) GetTracks(c *gin.Context) {
 func (h *LibraryHandler) GetUserTracks(c *gin.Context) {
 	username := c.Param("username")
 
-	tracks, err := h.db.ListTracksByUsername(c.Request.Context(), username)
+	tracks, err := h.libraryService.GetUserTracks(c.Request.Context(), username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error getting user tracks"})
 		return
-	}
-
-	if tracks == nil {
-		tracks = []repository.ListTracksByUsernameRow{}
 	}
 
 	c.JSON(http.StatusOK, tracks)
@@ -106,7 +102,8 @@ func (h *LibraryHandler) StreamTrack(c *gin.Context) {
 		return
 	}
 
-	track, err := h.db.GetTrackByID(c.Request.Context(), trackID)
+	// Uso del servicio para obtener metadata
+	track, err := h.libraryService.GetTrackByID(c.Request.Context(), trackID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "track not found"})
@@ -122,7 +119,6 @@ func (h *LibraryHandler) StreamTrack(c *gin.Context) {
 		return
 	}
 
-	// Gin maneja Content-Type, Content-Length y peticiones de rango (seeking).
 	c.File(track.FilePath)
 }
 
@@ -133,8 +129,7 @@ func (h *LibraryHandler) FindTrackInLibrary(c *gin.Context) {
 		return
 	}
 
-	param := sql.NullString{String: query, Valid: true}
-	results, err := h.db.SearchTracksByTitle(c.Request.Context(), param)
+	results, err := h.libraryService.SearchTracks(c.Request.Context(), query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while searching the tracks"})
 		return

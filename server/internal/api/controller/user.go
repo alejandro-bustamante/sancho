@@ -1,13 +1,9 @@
 package controller
 
 import (
-	"database/sql"
 	"net/http"
 
-	model "github.com/alejandro-bustamante/sancho/server/internal/model"
-	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type RegisterUserRequest struct {
@@ -21,14 +17,13 @@ type AuthenticateUserRequest struct {
 }
 
 type UserHandler struct {
-	db repository.Database
+	userService UserService // Inyectamos la interfaz
 }
 
-func NewUserHandler(db repository.Database) *UserHandler {
+func NewUserHandler(userService UserService) *UserHandler {
 	return &UserHandler{
-		db: db,
+		userService: userService,
 	}
-
 }
 
 func (h *UserHandler) RegisterUser(c *gin.Context) {
@@ -37,19 +32,13 @@ func (h *UserHandler) RegisterUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
 		return
 	}
-	ctx := c.Request.Context()
 
-	userParams := repository.InsertUserParams{
-		Username:     req.Username,
-		PasswordHash: hashPassword(req.Password),
-		Email:        sql.NullString{String: req.Email, Valid: req.Email != ""},
-	}
-	userDB, err := h.db.InsertUser(ctx, userParams)
+	// Lógica delegada al servicio
+	user, err := h.userService.RegisterUser(c.Request.Context(), req.Username, req.Password, req.Email)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Could not register new user in the database", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Could not register new user", "details": err.Error()})
 		return
 	}
-	user := model.UserFromDB(userDB)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":   "User was successfully created.",
@@ -65,46 +54,21 @@ func (h *UserHandler) AuthenticateUser(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
+	authenticated, err := h.userService.AuthenticateUser(c.Request.Context(), req.Username, req.Password)
+	if err != nil {
+		// Diferenciar error de sistema vs usuario no encontrado si es necesario
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed", "details": err.Error()})
+		return
+	}
 
-	userDB, err := h.db.GetUserByUsername(ctx, req.Username)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Error searching user in the database", "details": err.Error()})
-		return
-	}
-	authenticated, err := userAuthenticated(userDB.PasswordHash, req.Password)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error authenticating user", "details": err.Error()})
-		return
-	}
 	if !authenticated {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect username or password"})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "User successfully authenticated.",
 	})
-
-}
-
-func hashPassword(password string) string {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		// en producción deberías loguear esto, no panickear
-		panic("failed to hash password: " + err.Error())
-	}
-	return string(hash)
-}
-
-func userAuthenticated(passwordHash, passwordPlain string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(passwordPlain))
-	if err != nil {
-		if err == bcrypt.ErrMismatchedHashAndPassword {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
 }
 
 func (h *UserHandler) DeleteUser(c *gin.Context) {

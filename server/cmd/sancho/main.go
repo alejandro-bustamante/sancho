@@ -49,14 +49,17 @@ func main() {
 	// Inicializar servicios
 	fileMangerService := service.NewFileManager(queries)
 	indexerService := service.NewIndexer(queries, fileMangerService)
-	proxyHandler := controller.NewProxyCORSHandler()
+	libraryService := service.NewLibraryService(queries)
 	streamripService := service.NewStreamrip(indexerService, fileMangerService, queries)
 	thumbnailService := service.NewThumbnailService(queries)
+	userService := service.NewUserService(queries)
+
+	proxyHandler := controller.NewProxyCORSHandler()
 
 	// Inicializar handlers
 	downloadHandler := controller.NewMusicHandler(streamripService, indexerService, fileMangerService)
-	libraryHandler := controller.NewLibraryHandler(queries, indexerService, fileMangerService, thumbnailService)
-	userHandler := controller.NewUserHandler(queries)
+	libraryHandler := controller.NewLibraryHandler(libraryService, indexerService, fileMangerService, thumbnailService)
+	userHandler := controller.NewUserHandler(userService)
 
 	// Configurar router
 	router := gin.Default()

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/alejandro-bustamante/sancho/server/internal/model"
+	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 )
 
 type Streamrip interface {
@@ -28,4 +29,16 @@ type FileManager interface {
 type ThumbnailService interface {
 	GenerateAlbumThumbnails()
 	GetStatus() (isRunning bool, processed int, total int, err string)
+}
+
+type UserService interface {
+	RegisterUser(ctx context.Context, username, password, email string) (*model.User, error)
+	AuthenticateUser(ctx context.Context, username, password string) (bool, error)
+}
+
+type LibraryService interface {
+	GetAllTracks(ctx context.Context) ([]repository.Track, error)
+	GetUserTracks(ctx context.Context, username string) ([]repository.ListTracksByUsernameRow, error)
+	GetTrackByID(ctx context.Context, trackID int64) (repository.Track, error)
+	SearchTracks(ctx context.Context, query string) ([]repository.Track, error)
 }
