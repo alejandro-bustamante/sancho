@@ -11,15 +11,18 @@ import (
 	"github.com/alejandro-bustamante/sancho/server/internal/config"
 	model "github.com/alejandro-bustamante/sancho/server/internal/model"
 	"github.com/alejandro-bustamante/sancho/server/internal/repository"
+	"github.com/spf13/afero"
 )
 
 type FileManager struct {
 	db repository.Database
+	fs afero.Fs
 }
 
-func NewFileManager(db repository.Database) *FileManager {
+func NewFileManager(db repository.Database, fs afero.Fs) *FileManager {
 	return &FileManager{
 		db: db,
+		fs: fs,
 	}
 }
 
@@ -40,11 +43,10 @@ func (fm *FileManager) renameTrack(ctx context.Context, track model.Track, artis
 
 	safeTitle := sanitizeFilename(track.Title)
 	safeArtist := sanitizeFilename(artistName)
-
 	newFileName := fmt.Sprintf("%s. %s - %s%s", trackNumber, safeTitle, safeArtist, ext)
 	newPath := filepath.Join(baseDir, newFileName)
 
-	if err := os.Rename(track.FilePath, newPath); err != nil {
+	if err := fm.fs.Rename(track.FilePath, newPath); err != nil {
 		return "", fmt.Errorf("error renaming file: %w", err)
 	}
 
@@ -59,7 +61,7 @@ func (fm *FileManager) renameTrack(ctx context.Context, track model.Track, artis
 	return newPath, nil
 }
 
-func (fm *FileManager) moveTrackToLibrary(ctx context.Context, track model.Track) (trackPath string, err error) {
+func (fm *FileManager) MoveTrackToLibrary(ctx context.Context, track model.Track) (trackPath string, err error) {
 	//Temporal empty context to avoid timeouts
 	ctx = context.Background()
 	// Expected folder structure in the library is:
@@ -85,16 +87,16 @@ func (fm *FileManager) moveTrackToLibrary(ctx context.Context, track model.Track
 
 	safeArtist := sanitizeFilename(artist.Name)
 	safeAlbum := sanitizeFilename(album.Title)
-
 	targetDir := filepath.Join(libraryRoot, safeArtist, safeAlbum)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+
+	if err := fm.fs.MkdirAll(targetDir, 0755); err != nil {
 		return "", fmt.Errorf("error creating directory structure: %w", err)
 	}
 
 	fileName := filepath.Base(track.FilePath)
 	newPath := filepath.Join(targetDir, fileName)
 
-	if err := os.Rename(track.FilePath, newPath); err != nil {
+	if err := fm.fs.Rename(track.FilePath, newPath); err != nil {
 		return "", fmt.Errorf("error moving file to library: %w", err)
 	}
 
@@ -132,7 +134,7 @@ func (fm *FileManager) LinkTrackToUser(ctx context.Context, isrc, user string) (
 	}
 	trackModel.FilePath = renamedPath
 
-	finalPath, err := fm.moveTrackToLibrary(ctx, trackModel)
+	finalPath, err := fm.MoveTrackToLibrary(ctx, trackModel)
 	if err != nil {
 		return "", err
 	}
@@ -149,7 +151,7 @@ func (fm *FileManager) LinkTrackToUser(ctx context.Context, isrc, user string) (
 	userFilePath := filepath.Join(userLibraryDir, relativeTrackPath)
 	userDir := filepath.Dir(userFilePath)
 
-	if err := os.MkdirAll(userDir, 0755); err != nil {
+	if err := fm.fs.MkdirAll(userDir, 0755); err != nil {
 		return "", fmt.Errorf("error creating user directory: %w", err)
 	}
 
@@ -159,7 +161,15 @@ func (fm *FileManager) LinkTrackToUser(ctx context.Context, isrc, user string) (
 		return "", fmt.Errorf("error generating relative symlink target: %w", err)
 	}
 
-	if err := os.Symlink(relativeSymlinkTarget, userFilePath); err != nil {
+	// if err := os.Symlink(relativeSymlinkTarget, userFilePath); err != nil {
+	// 	return "", fmt.Errorf("error creating symlink: %w", err)
+	// }
+	linker, ok := fm.fs.(afero.Linker)
+	if !ok {
+		return "", fmt.Errorf("filesystem does not support symlink")
+	}
+
+	if err := linker.SymlinkIfPossible(relativeSymlinkTarget, userFilePath); err != nil {
 		return "", fmt.Errorf("error creating symlink: %w", err)
 	}
 
@@ -218,15 +228,15 @@ func (fm *FileManager) DeleteTrackForUser(ctx context.Context, username string, 
 
 	// --- User Library (Symlinks) Cleanup ---
 	// We remove symlinks first.
-	if err := os.Remove(symlinkPath); err != nil {
+	if err := fm.fs.Remove(symlinkPath); err != nil {
 		return fmt.Errorf("could not remove symlink %s: %w", symlinkPath, err)
 	}
 
-	if err := removeDirIfEmpty(userAlbumDir); err != nil {
+	if err := fm.removeDirIfEmpty(userAlbumDir); err != nil {
 		return fmt.Errorf("error cleaning user's album directory: %w", err)
 	}
 	if userArtistDir != userLibraryDir {
-		if err := removeDirIfEmpty(userArtistDir); err != nil {
+		if err := fm.removeDirIfEmpty(userArtistDir); err != nil {
 			return fmt.Errorf("error cleaning user's artist directory: %w", err)
 		}
 	}
@@ -288,17 +298,17 @@ func (fm *FileManager) DeleteTrackForUser(ctx context.Context, username string, 
 		globalAlbumDir := filepath.Dir(track.FilePath)
 		globalArtistDir := filepath.Dir(globalAlbumDir)
 
-		if err := os.Remove(track.FilePath); err != nil {
+		if err := fm.fs.Remove(track.FilePath); err != nil {
 			// We log the error but don't return it, as the business operation (DB) was successful.
 			fmt.Printf("Warning: could not remove physical file %s: %v\n", track.FilePath, err)
 		} else {
 			// Only try to clean dirs if file removal was successful
-			if err := removeDirIfEmpty(globalAlbumDir); err != nil {
+			if err := fm.removeDirIfEmpty(globalAlbumDir); err != nil {
 				fmt.Printf("Warning: error cleaning global album directory: %v\n", err)
 			}
 
 			if globalArtistDir != globalLibraryDir {
-				if err := removeDirIfEmpty(globalArtistDir); err != nil {
+				if err := fm.removeDirIfEmpty(globalArtistDir); err != nil {
 					fmt.Printf("Warning: error cleaning global artist directory: %v\n", err)
 				}
 			}
@@ -308,18 +318,20 @@ func (fm *FileManager) DeleteTrackForUser(ctx context.Context, username string, 
 	return nil
 }
 
-func removeDirIfEmpty(path string) error {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil
+func (fm *FileManager) removeDirIfEmpty(path string) error {
+	if _, err := fm.fs.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 	}
 
-	entries, err := os.ReadDir(path)
+	entries, err := afero.ReadDir(fm.fs, path)
 	if err != nil {
 		return fmt.Errorf("could not read directory %s: %w", path, err)
 	}
 
 	if len(entries) == 0 {
-		if err := os.Remove(path); err != nil {
+		if err := fm.fs.Remove(path); err != nil {
 			return fmt.Errorf("could not remove empty directory %s: %w", path, err)
 		}
 	}

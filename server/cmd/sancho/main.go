@@ -11,6 +11,7 @@ import (
 	"github.com/alejandro-bustamante/sancho/server/internal/config"
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/alejandro-bustamante/sancho/server/internal/service"
+	"github.com/spf13/afero"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
@@ -46,9 +47,12 @@ func main() {
 	}
 	queries := db.NewDatabase(conn)
 
+	//Creating the afero fs instance for the fileManager and indexer
+	fs := afero.NewOsFs()
+
 	// Inicializar servicios
-	fileMangerService := service.NewFileManager(queries)
-	indexerService := service.NewIndexer(queries, fileMangerService)
+	fileMangerService := service.NewFileManager(queries, fs)
+	indexerService := service.NewIndexer(queries, fileMangerService, fs, nil)
 	libraryService := service.NewLibraryService(queries)
 	streamripService := service.NewStreamrip(indexerService, fileMangerService, queries)
 	thumbnailService := service.NewThumbnailService(queries)

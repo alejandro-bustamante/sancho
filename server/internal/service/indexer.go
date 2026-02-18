@@ -17,18 +17,46 @@ import (
 	"github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/spf13/afero"
 	tag "go.senan.xyz/taglib"
 )
 
-type Indexer struct {
-	db          repository.Database
-	fileManager *FileManager
+// Needed to uncouple the metadata reading from services
+// so we can do testing
+// METADATA EXTRATOR
+// ---------------------------------------------
+type MetadataExtractor interface {
+	ReadTags(path string) (map[string][]string, error)
+	ReadProperties(path string) (tag.Properties, error)
 }
 
-func NewIndexer(db repository.Database, fileManager *FileManager) *Indexer {
+type RealMetadataExtractor struct{}
+
+func (r *RealMetadataExtractor) ReadTags(path string) (map[string][]string, error) {
+	return tag.ReadTags(path)
+}
+func (r *RealMetadataExtractor) ReadProperties(path string) (tag.Properties, error) {
+	return tag.ReadProperties(path)
+}
+
+// ---------------------------------------------
+
+type Indexer struct {
+	db            repository.Database
+	fileManager   *FileManager
+	fs            afero.Fs
+	metaExtractor MetadataExtractor
+}
+
+func NewIndexer(db repository.Database, fileManager *FileManager, fs afero.Fs, meta MetadataExtractor) *Indexer {
+	if meta == nil {
+		meta = &RealMetadataExtractor{}
+	}
 	return &Indexer{
-		db:          db,
-		fileManager: fileManager,
+		db:            db,
+		fileManager:   fileManager,
+		fs:            fs,
+		metaExtractor: meta,
 	}
 }
 
@@ -56,8 +84,9 @@ func NewTrackExistsError(isrc string, trackID int64) *TrackExistsError {
 
 func (x *Indexer) IndexFolder(ctx context.Context, rootDir, user, service string, quality int) error {
 	ctx = context.Background()
-	return filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+	return afero.Walk(x.fs, rootDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !x.isAudioFile(path) {
+			// log.Printf("ERRRROR")
 			return nil
 		}
 
@@ -75,7 +104,7 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 	// Get track info
 	// Tags: big hash map
 	ctx = context.Background()
-	tags, err := tag.ReadTags(path)
+	tags, err := x.metaExtractor.ReadTags(path)
 	if err != nil {
 		return 0, fmt.Errorf("error reading tags: %w", err)
 	}
@@ -87,7 +116,7 @@ func (x *Indexer) IndexFile(ctx context.Context, info os.FileInfo, path, user st
 		return vals[0]
 	}
 	// Properties: some technical data
-	properties, err := tag.ReadProperties(path)
+	properties, err := x.metaExtractor.ReadProperties(path)
 	if err != nil {
 		return 0, fmt.Errorf("Error reading properties: %w", err)
 	}
@@ -344,7 +373,7 @@ func (x *Indexer) IsTrackInLibrary(ctx context.Context, isrc string) (bool, erro
 
 func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, service string, quality int) error {
 	ctx = context.Background()
-	info, err := os.Stat(fullPath)
+	info, err := x.fs.Stat(fullPath)
 	if err != nil {
 		return fmt.Errorf("file not found: %w", err)
 	}
@@ -387,7 +416,7 @@ func (x *Indexer) RegisterLocalTrack(ctx context.Context, fullPath, user, servic
 	}
 	trackModel.FilePath = renamedPath
 
-	_, err = x.fileManager.moveTrackToLibrary(ctx, trackModel)
+	_, err = x.fileManager.MoveTrackToLibrary(ctx, trackModel)
 	if err != nil {
 		return fmt.Errorf("error moving track to library: %w", err)
 	}
