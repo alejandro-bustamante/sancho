@@ -1,8 +1,8 @@
 bin
-server/database/*.sancho*
-server/.env
-server/cmd/bitrate
-server/build
+database/*.sancho*
+.env
+cmd/bitrate
+build
 config.toml
 test/setup_test_env
 test/test_env
