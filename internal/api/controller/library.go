@@ -3,13 +3,11 @@ package controller
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-
-	"github.com/gin-gonic/gin"
 )
 
 // The structure of the request the client has to pass us
@@ -36,13 +34,10 @@ func NewLibraryHandler(lib LibraryService, s Indexer, f FileManager, t Thumbnail
 	}
 }
 
-func (h *LibraryHandler) IndexFolder(c *gin.Context) {
+func (h *LibraryHandler) IndexFolder(w http.ResponseWriter, r *http.Request) {
 	var req LibraryIndexRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": err.Error(),
-		})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Error en el formato de la solicitud", http.StatusBadRequest)
 		return
 	}
 
@@ -52,125 +47,131 @@ func (h *LibraryHandler) IndexFolder(c *gin.Context) {
 	service := req.Service
 	quality := req.Quality
 
-	// Respondemos inmediatamente
-	c.JSON(http.StatusAccepted, gin.H{
-		"status":  "Indexing in progress",
-		"message": fmt.Sprintf("Indexing of %s started in background for user %s", path, user),
-	})
-
 	// Procesamos en segundo plano
 	go func() {
 		// Usamos contexto vacío para que no se cancele si el cliente desconecta
 		ctx := context.Background()
 
 		log.Printf("Indexing folder '%s' for user '%s'...", path, user)
+		// if err := h.indexerService.IndexFolder(ctx, path, user, service, quality); err != nil {
 		if err := h.indexerService.IndexFolder(ctx, path, user, service, quality); err != nil {
 			log.Printf("[ERROR] Failed indexing folder %s for user %s: %v", path, user, err)
 		} else {
 			log.Printf("[OK] Indexing completed for folder %s (user: %s)", path, user)
 		}
 	}()
+
+	// Devolvemos un fragmento HTML para que HTMX lo muestre en pantalla
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<div class='bg-green-100 p-4'>Indexación iniciada para " + req.User + "</div>"))
 }
 
-func (h *LibraryHandler) GetTracks(c *gin.Context) {
-	// Uso del servicio
-	tracks, err := h.libraryService.GetAllTracks(c.Request.Context())
+func (h *LibraryHandler) GetTracks(w http.ResponseWriter, r *http.Request) {
+	// tracks, err := h.libraryService.GetAllTracks(r.Context())
+	_, err := h.libraryService.GetAllTracks(r.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while getting the tracks"})
-		return
-	}
-	c.JSON(http.StatusOK, tracks)
-}
-
-func (h *LibraryHandler) GetUserTracks(c *gin.Context) {
-	username := c.Param("username")
-
-	tracks, err := h.libraryService.GetUserTracks(c.Request.Context(), username)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error getting user tracks"})
+		http.Error(w, "<div class='error'>Error al obtener las canciones</div>", http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, tracks)
+	// Placeholder HTML. Luego inyectarás un componente Templ pasándole la variable `tracks`
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<ul><li>Placeholder: Se encontraron canciones</li></ul>"))
 }
 
-func (h *LibraryHandler) StreamTrack(c *gin.Context) {
-	trackIDStr := c.Param("trackId")
+func (h *LibraryHandler) GetUserTracks(w http.ResponseWriter, r *http.Request) {
+	username := r.PathValue("username")
+
+	// tracks, err := h.libraryService.GetUserTracks(r.Context(), username)
+	_, err := h.libraryService.GetUserTracks(r.Context(), username)
+	if err != nil {
+		http.Error(w, "<div class='error'>Error obteniendo canciones del usuario</div>", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<div>Placeholder: Canciones cargadas para " + username + "</div>"))
+}
+
+func (h *LibraryHandler) StreamTrack(w http.ResponseWriter, r *http.Request) {
+	trackIDStr := r.PathValue("trackId")
 	trackID, err := strconv.ParseInt(trackIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid track ID"})
+		http.Error(w, "ID de canción inválido", http.StatusBadRequest)
 		return
 	}
 
-	// Uso del servicio para obtener metadata
-	track, err := h.libraryService.GetTrackByID(c.Request.Context(), trackID)
+	track, err := h.libraryService.GetTrackByID(r.Context(), trackID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "track not found"})
+			http.Error(w, "Canción no encontrada", http.StatusNotFound)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get track"})
+		http.Error(w, "Error al obtener canción", http.StatusInternalServerError)
 		return
 	}
 
 	if _, err := os.Stat(track.FilePath); os.IsNotExist(err) {
-		log.Printf("File not found for track %d: %s", trackID, track.FilePath)
-		c.JSON(http.StatusNotFound, gin.H{"error": "audio file not found"})
+		log.Printf("Archivo no encontrado para track %d: %s", trackID, track.FilePath)
+		http.Error(w, "Archivo de audio no encontrado", http.StatusNotFound)
 		return
 	}
 
-	c.File(track.FilePath)
+	// La librería estándar sirve archivos muy fácilmente
+	http.ServeFile(w, r, track.FilePath)
 }
 
-func (h *LibraryHandler) FindTrackInLibrary(c *gin.Context) {
-	query := c.Query("q")
+func (h *LibraryHandler) FindTrackInLibrary(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "The parameter 'q' was missing"})
+		http.Error(w, "<div class='error'>Falta el parámetro 'q'</div>", http.StatusBadRequest)
 		return
 	}
 
-	results, err := h.libraryService.SearchTracks(c.Request.Context(), query)
+	// results, err := h.libraryService.SearchTracks(r.Context(), query)
+	_, err := h.libraryService.SearchTracks(r.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error while searching the tracks"})
+		http.Error(w, "<div class='error'>Error buscando canciones</div>", http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusOK, results)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<div>Placeholder: Resultados de búsqueda en librería</div>"))
 }
 
-func (h *LibraryHandler) DeleteTrackFromLibrary(c *gin.Context) {
-	username := c.Param("username")
-	trackIDStr := c.Param("trackId")
+func (h *LibraryHandler) DeleteTrackFromLibrary(w http.ResponseWriter, r *http.Request) {
+	username := r.PathValue("username")
+	trackIDStr := r.PathValue("trackId")
 
 	trackID, err := strconv.ParseInt(trackIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": " invalid song ID"})
+		http.Error(w, "ID de canción inválido", http.StatusBadRequest)
 		return
 	}
 
-	ctx := context.Background()
-	err = h.fileManager.DeleteTrackForUser(ctx, username, trackID)
+	err = h.fileManager.DeleteTrackForUser(context.Background(), username, trackID)
 	if err != nil {
 		log.Printf("Error al eliminar la canción: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar la canción", "details": err.Error()})
+		http.Error(w, "<div class='error'>No se pudo eliminar la canción</div>", http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Canción eliminada de la librería correctamente"})
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<div class='success'>Canción eliminada correctamente</div>"))
 }
 
-func (h *LibraryHandler) GenerateAlbumThumbnails(c *gin.Context) {
+func (h *LibraryHandler) GenerateAlbumThumbnails(w http.ResponseWriter, r *http.Request) {
 	h.thumbnailService.GenerateAlbumThumbnails()
-	c.JSON(http.StatusAccepted, gin.H{
-		"message": "Album thumbnail generation started in the background.",
-	})
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusAccepted)
+	w.Write([]byte("<div>Generación de miniaturas iniciada...</div>"))
 }
 
-func (h *LibraryHandler) GetThumbnailGenerationStatus(c *gin.Context) {
-	isRunning, processed, total, errMsg := h.thumbnailService.GetStatus()
-	c.JSON(http.StatusOK, gin.H{
-		"isRunning": isRunning,
-		"processed": processed,
-		"total":     total,
-		"error":     errMsg,
-	})
+func (h *LibraryHandler) GetThumbnailGenerationStatus(w http.ResponseWriter, r *http.Request) {
+	// isRunning, processed, total, errMsg := h.thumbnailService.GetStatus()
+	isRunning, _, _, _ := h.thumbnailService.GetStatus()
+
+	// HTMX puede hacer polling a este endpoint para actualizar una barra de progreso
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<div>Placeholder Estado: Corriendo=" + strconv.FormatBool(isRunning) + "</div>"))
 }

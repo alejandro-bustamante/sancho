@@ -3,11 +3,9 @@ package config
 import (
 	"os"
 	"path/filepath"
-)
 
-func isDev() bool {
-	return os.Getenv("SANCHO_ENV") == "dev"
-}
+	"github.com/joho/godotenv"
+)
 
 var (
 	DBPath       string
@@ -18,17 +16,18 @@ var (
 )
 
 func init() {
-	if isDev() {
-		DBPath = os.Getenv("DB_PATH")
-		SanchoPath = os.Getenv("SANCHO_PATH")
-		HttpPort = os.Getenv("HTTP_PORT")
-		FrontendPath = os.Getenv("FRONTEND_PATH")
-		LibraryPath = filepath.Join(SanchoPath, "library")
-	} else {
-		DBPath = "/data/database.sancho"
-		SanchoPath = "/sancho"
-		HttpPort = "5400"
-		FrontendPath = "/app/build"
-		LibraryPath = "/sancho/library"
+	_ = godotenv.Load()
+
+	DBPath = getEnvOrDefault("DB_PATH", "/data/database.sancho")
+	SanchoPath = getEnvOrDefault("SANCHO_PATH", "/sancho")
+	HttpPort = getEnvOrDefault("HTTP_PORT", "5400")
+	FrontendPath = getEnvOrDefault("FRONTEND_PATH", "/app/build")
+	LibraryPath = getEnvOrDefault("LIBRARY_PATH", filepath.Join(SanchoPath, "library"))
+}
+
+func getEnvOrDefault(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
 	}
+	return defaultVal
 }

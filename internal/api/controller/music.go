@@ -1,11 +1,11 @@
 package controller
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
 	"github.com/alejandro-bustamante/sancho/server/internal/model"
-	"github.com/gin-gonic/gin"
 )
 
 type MusicHandler struct {
@@ -40,123 +40,71 @@ type TrackSampleRequest struct {
 	ISRC string `json:"isrc" binding:"required"`
 }
 
-func (h *MusicHandler) DownloadSingleTrack(c *gin.Context) {
+func (h *MusicHandler) DownloadSingleTrack(w http.ResponseWriter, r *http.Request) {
 	var req DownloadRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "<div class='error'>Solicitud inválida</div>", http.StatusBadRequest)
 		return
 	}
 
 	log.Printf("Download started for song with Qobuz ID: %s, ISRC: %s", req.ID, req.ISRC)
-	result, err := h.streamripService.EnsureTrackForUser(c.Request.Context(), req.ID, req.User, req.ISRC, req.Quality)
+	result, err := h.streamripService.EnsureTrackForUser(r.Context(), req.ID, req.User, req.ISRC, req.Quality)
 	if err != nil {
 		log.Printf("Error downloading and indexing song: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start download", "details": err.Error()})
+		http.Error(w, "<div class='error'>Error al iniciar la descarga</div>", http.StatusInternalServerError)
 		return
 	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	switch result.Action {
 	case model.ActionNoop:
-		c.JSON(http.StatusOK, gin.H{
-			"downloadId": result.ID,
-			"status":     "exists",
-			"message":    "The song is already in your account.",
-		})
+		w.Write([]byte("<div class='info'>La canción ya está en tu cuenta.</div>"))
 	case model.ActionLinked:
-		c.JSON(http.StatusAccepted, gin.H{
-			"downloadId": result.ID,
-			"status":     "linking",
-			"message":    "The song was already downloaded. Linking to your account.",
-		})
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("<div class='info'>La canción ya estaba descargada. Vinculada a tu cuenta.</div>"))
 	case model.ActionDownloading:
-		c.JSON(http.StatusAccepted, gin.H{
-			"downloadId": result.ID,
-			"status":     "downloading",
-			"message":    "Download has started. You can track it with the download ID.",
-		})
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("<div class='success'>Descarga iniciada.</div>"))
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Unknown action returned by the server.",
-		})
+		http.Error(w, "<div class='error'>Acción desconocida devuelta por el servidor.</div>", http.StatusInternalServerError)
 	}
 }
 
-func (h *MusicHandler) SearchTracksByTitle(c *gin.Context) {
-	// Obtener el query parameter
-	query := c.Query("q")
-
-	// Validar que el parámetro no esté vacío
+func (h *MusicHandler) SearchTracksByTitle(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Query parameter 'q' is required"})
+		http.Error(w, "<div class='error'>Se requiere el parámetro 'q'</div>", http.StatusBadRequest)
 		return
 	}
 
-	results, err := h.streamripService.SearchSong("qobuz", "track", query)
+	// results, err := h.streamripService.SearchSong("qobuz", "track", query)
+	_, err := h.streamripService.SearchSong("qobuz", "track", query)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to search the track", "details": err.Error()})
+		http.Error(w, "<div class='error'>Error en la búsqueda</div>", http.StatusBadRequest)
 		return
 	}
 
-	preview := model.MapToTrackPreviews(results)
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Búsqueda completada",
-		"results": preview,
-	})
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<ul><li>Placeholder: Resultados de búsqueda en Qobuz</li></ul>"))
 }
 
-func (h *MusicHandler) GetTrackSample(c *gin.Context) {
-	isrc := c.Param("isrc")
+func (h *MusicHandler) GetTrackSample(w http.ResponseWriter, r *http.Request) {
+	isrc := r.PathValue("isrc")
 	sample_url, err := h.streamripService.GetDeezerTrackSample(isrc)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to find the track's sample audio", "details": err.Error()})
+		http.Error(w, "Error al obtener sample", http.StatusBadRequest)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message":    "Búsqueda completada",
-		"sample_url": sample_url,
-	})
+
+	// Para un sample, podrías devolver un tag de audio
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<audio controls src='" + sample_url + "'></audio>"))
 }
 
-// func (h *MusicHandler) SearchTracksDeezer(c *gin.Context) {
-// 	var req SearchTrackRequest
-// 	if err := c.ShouldBindJSON(&req); err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
-// 		return
-// 	}
+func (h *MusicHandler) GetDownloadStatus(w http.ResponseWriter, r *http.Request) {
+	downloadID := r.PathValue("id")
+	status, _ := h.streamripService.GetDownloadStatus(downloadID)
 
-// 	query := url.QueryEscape(req.Title)
-// 	deezerURL := "https://api.deezer.com/search?q=" + query
-
-// 	resp, err := http.Get(deezerURL)
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch from Deezer", "details": err.Error()})
-// 		return
-// 	}
-// 	defer resp.Body.Close()
-
-// 	if resp.StatusCode != http.StatusOK {
-// 		c.JSON(http.StatusBadGateway, gin.H{"error": "Deezer API returned non-200", "status": resp.Status})
-// 		return
-// 	}
-
-// 	var deezerResp model.DeezerSearchResponse
-// 	if err := json.NewDecoder(resp.Body).Decode(&deezerResp); err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse Deezer response", "details": err.Error()})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"message": "Resultados de Deezer",
-// 		"results": deezerResp.Data,
-// 	})
-// }
-
-func (h *MusicHandler) GetDownloadStatus(c *gin.Context) {
-	downloadID := c.Param("id")
-	status, errMsg := h.streamripService.GetDownloadStatus(downloadID)
-
-	resp := gin.H{"downloadId": downloadID, "status": status}
-	if status == model.StatusFailed {
-		resp["error"] = errMsg
-	}
-	c.JSON(http.StatusOK, resp)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<div>Estado de descarga: " + string(status) + "</div>"))
 }

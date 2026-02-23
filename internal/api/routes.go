@@ -1,7 +1,9 @@
 package api
 
 import (
-	mdw "github.com/alejandro-bustamante/sancho/server/internal/api/middleware"
+	"net/http"
+
+	"github.com/alejandro-bustamante/sancho/server/internal/api/controller"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,32 +34,57 @@ type UserHandler interface {
 	UpdateUser(c *gin.Context)
 }
 
-func RegisterRoutes(router *gin.Engine, p ProxyHandler, m MusicHandler, l LibraryHandler, u UserHandler) {
-	router.Use(mdw.CORSMiddleware())
+func RegisterRoutes(
+	mux *http.ServeMux,
+	p *controller.ProxyHandler,
+	m *controller.MusicHandler,
+	l *controller.LibraryHandler,
+	u *controller.UserHandler,
+) {
 
-	api := router.Group("/api")
-	{
-		api.GET("/proxy", p.ProxyCORSHandler)
+	// music handler
+	mux.HandleFunc("POST /api/library/index", m.DownloadSingleTrack)
+	mux.HandleFunc("GET /api/search", m.SearchTracksByTitle)
+	mux.HandleFunc("GET /api/downloads/:id/status", m.GetDownloadStatus)
+	mux.HandleFunc("GET /api/search/:isrc/sample", m.GetTrackSample)
 
-		api.POST("/downloads", m.DownloadSingleTrack)
-		api.GET("/search", m.SearchTracksByTitle)
-		api.GET("/downloads/:id/status", m.GetDownloadStatus)
-		api.GET("/search/:isrc/sample", m.GetTrackSample)
+	// library handler
+	mux.HandleFunc("POST /api/index", l.IndexFolder)
+	mux.HandleFunc("GET /api/library/thumbnails", l.GenerateAlbumThumbnails)
+	mux.HandleFunc("GET /api/tracks", l.GetTracks)
+	mux.HandleFunc("GET /api/tracks/search", l.FindTrackInLibrary)
+	mux.HandleFunc("GET /api/library/thumbnails/status", l.GetThumbnailGenerationStatus)
+	mux.HandleFunc("GET /api/users/{username}/tracks", l.GetUserTracks)
+	mux.HandleFunc("GET /api/tracks/{trackId}/stream", l.StreamTrack)
+	mux.HandleFunc("DELETE /api/users/{username}/tracks/{trackId}", l.DeleteTrackFromLibrary)
 
-		api.POST("/index", l.IndexFolder)
-		api.GET("/tracks", l.GetTracks)
-		api.GET("/tracks/search", l.FindTrackInLibrary)
-		api.DELETE("/users/:username/tracks/:trackId", l.DeleteTrackFromLibrary)
+	// user handler
+	mux.HandleFunc("POST /api/users", u.RegisterUser)
+	mux.HandleFunc("POST /api/auth", u.AuthenticateUser)
+	mux.HandleFunc("DELETE /api/users", u.DeleteUser)
+	mux.HandleFunc("DELETE /api/users/{id}", u.UpdateUser)
 
-		api.POST("/library/thumbnails", l.GenerateAlbumThumbnails)
-		api.GET("/library/thumbnails/status", l.GetThumbnailGenerationStatus)
+	// api := router.Group("/api")
+	// {
+	// 	api.GET("/proxy", p.ProxyCORSHandler)
 
-		api.GET("/users/:username/tracks", l.GetUserTracks)
-		api.GET("/tracks/:trackId/stream", l.StreamTrack)
+	// 	api.POST("/downloads", m.DownloadSingleTrack)
+	// 	api.GET("/search", m.SearchTracksByTitle)
+	// 	api.GET("/downloads/:id/status", m.GetDownloadStatus)
+	// 	api.GET("/search/:isrc/sample", m.GetTrackSample)
 
-		api.POST("/users", u.RegisterUser)
-		api.DELETE("/users", u.DeleteUser)
-		api.POST("/auth", u.AuthenticateUser)
-		api.PATCH("/users/:id", u.UpdateUser)
-	}
+	// 	api.POST("/index", l.IndexFolder)
+	// 	api.POST("/library/thumbnails", l.GenerateAlbumThumbnails)
+	// 	api.GET("/tracks", l.GetTracks)
+	// 	api.GET("/tracks/search", l.FindTrackInLibrary)
+	// 	api.GET("/library/thumbnails/status", l.GetThumbnailGenerationStatus)
+	// 	api.GET("/users/:username/tracks", l.GetUserTracks)
+	// 	api.GET("/tracks/:trackId/stream", l.StreamTrack)
+	// 	api.DELETE("/users/:username/tracks/:trackId", l.DeleteTrackFromLibrary)
+
+	// 	api.POST("/users", u.RegisterUser)
+	// 	api.POST("/auth", u.AuthenticateUser)
+	// 	api.DELETE("/users", u.DeleteUser)
+	// 	api.PATCH("/users/:id", u.UpdateUser)
+	// }
 }

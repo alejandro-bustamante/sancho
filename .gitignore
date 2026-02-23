@@ -6,5 +6,9 @@ build
 config.toml
 test/setup_test_env
 test/test_env
+test/cover.jpg
+tmp
+
 
 .env
+.air.toml

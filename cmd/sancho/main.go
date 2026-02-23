@@ -3,17 +3,18 @@ package main
 import (
 	"database/sql"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/alejandro-bustamante/sancho/server/internal/api"
 	"github.com/alejandro-bustamante/sancho/server/internal/api/controller"
+	"github.com/alejandro-bustamante/sancho/server/internal/api/middleware"
 	"github.com/alejandro-bustamante/sancho/server/internal/config"
 	db "github.com/alejandro-bustamante/sancho/server/internal/repository"
 	"github.com/alejandro-bustamante/sancho/server/internal/service"
 	"github.com/spf13/afero"
 
-	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -66,33 +67,37 @@ func main() {
 	userHandler := controller.NewUserHandler(userService)
 
 	// Configurar router
-	router := gin.Default()
-
+	// router := gin.Default()
 	// Serve library files for album art
-	router.Static("/library", config.LibraryPath)
+	// router.Static("/library", config.LibraryPath)
 
-	api.RegisterRoutes(router, proxyHandler, downloadHandler, libraryHandler, userHandler)
+	// Chage to std lib
+	mux := http.NewServeMux()
+	mux.Handle("GET /library", http.StripPrefix("/library", http.FileServer(http.Dir(config.LibraryPath))))
+
+	api.RegisterRoutes(mux, proxyHandler, downloadHandler, libraryHandler, userHandler)
 	// ------------------------------------------
 
 	// ------------- FRONTEND -------------------
 	// Servir archivos específicos
 	frontend := config.FrontendPath
 	// router.Static("/_app", "./build/_app")
-	router.Static("/_app", filepath.Join(frontend, "_app"))
-	// router.StaticFile("/favicon.png", "./build/favicon.png")
-	router.StaticFile("/favicon.ico", filepath.Join(frontend, "favicon.ico"))
-
-	// Servir el archivo index.html para todas las rutas que no sean API o archivos estáticos (SPA)
-	router.NoRoute(func(c *gin.Context) {
-		indexPath := filepath.Join(frontend, "index.html")
-		c.File(indexPath)
+	mux.Handle("GET /_app", http.StripPrefix("/_app", http.FileServer(http.Dir(filepath.Join(frontend, "_app")))))
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(frontend, "favicon.ico"))
+	})
+	// Ruta base para servir el HTML (Aquí luego inyectarás views.Index().Render(r.Context(), w))
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte("<h1>Placeholder Inicio (HTMX + Templ)</h1>"))
 	})
 	// ------------------------------------------
 
+	handlerConCORS := middleware.CORSMiddleware(mux)
+
 	port := config.HttpPort
 	log.Printf("Server running on http://localhost:%s", port)
-	// if err := router.Run(":" + port); err != nil {
-	if err := router.Run(":" + port); err != nil {
+	if err := http.ListenAndServe(":"+port, handlerConCORS); err != nil {
 		log.Fatalf("Could not initialize the server. Error: %v", err)
 	}
 }

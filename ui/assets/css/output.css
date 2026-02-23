@@ -1,0 +1,41 @@
+/*! tailwindcss v4.2.0 | MIT License | https://tailwindcss.com */
+.relative {
+  position: relative;
+}
+.container {
+  width: 100%;
+}
+.mx-auto {
+  margin-inline: auto;
+}
+.mt-auto {
+  margin-top: auto;
+}
+.block {
+  display: block;
+}
+.contents {
+  display: contents;
+}
+.flex {
+  display: flex;
+}
+.table {
+  display: table;
+}
+.min-h-screen {
+  min-height: 100vh;
+}
+.flex-grow {
+  flex-grow: 1;
+}
+.flex-col {
+  flex-direction: column;
+}
+.text-center {
+  text-align: center;
+}
+.antialiased {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
