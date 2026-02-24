@@ -1,7 +1,29 @@
 package views
 
-
-templ Index() {
-	Base("Inicio - Sancho") {
+templ Main(username string) {
+	@Base("Inicio") {
+		<div class="min-h-full">
+			<nav class="bg-gray-800">
+				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+					<div class="flex h-16 items-center justify-between">
+						<div class="flex items-center">
+							<span class="text-white font-bold text-xl">Sancho </span>
+						</div>
+						<div class="flex items-center gap-4">
+							<span class="text-gray-300 text-sm">Hola, { username }</span>
+							<form action="/logout" method="POST" class="m-0">
+								<button type="submit" class="text-gray-300 hover:text-white text-sm font-medium">Cerrar Sesión</button>
+							</form>
+						</div>
+					</div>
+				</div>
+			</nav>
+			<main>
+				<div class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+					<h1 class="text-3xl font-bold tracking-tight text-gray-900">Bienvenidos a tu biblioteca musical</h1>
+					<p class="mt-4 text-gray-600">Aquí irá el resto de tu interfaz con HTMX.</p>
+				</div>
+			</main>
+		</div>
 	}
 }

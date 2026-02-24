@@ -21,6 +21,7 @@ func init() {
 	DBPath = getEnvOrDefault("DB_PATH", "/data/database.sancho")
 	SanchoPath = getEnvOrDefault("SANCHO_PATH", "/sancho")
 	HttpPort = getEnvOrDefault("HTTP_PORT", "5400")
+	//Probably change frotend path in prod
 	FrontendPath = getEnvOrDefault("FRONTEND_PATH", "/app/build")
 	LibraryPath = getEnvOrDefault("LIBRARY_PATH", filepath.Join(SanchoPath, "library"))
 }

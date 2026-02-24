@@ -1,7 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./views/**/*.templ", // Tailwind escaneará todos tus archivos .templ
+    "./ui/views/**/*.templ",
+    "./ui/views/**/*.go",
   ],
   theme: {
     extend: {},

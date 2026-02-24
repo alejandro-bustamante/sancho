@@ -45,8 +45,8 @@ func RegisterRoutes(
 	// music handler
 	mux.HandleFunc("POST /api/library/index", m.DownloadSingleTrack)
 	mux.HandleFunc("GET /api/search", m.SearchTracksByTitle)
-	mux.HandleFunc("GET /api/downloads/:id/status", m.GetDownloadStatus)
-	mux.HandleFunc("GET /api/search/:isrc/sample", m.GetTrackSample)
+	mux.HandleFunc("GET /api/downloads/{id}/status", m.GetDownloadStatus)
+	mux.HandleFunc("GET /api/search/{isrc}/sample", m.GetTrackSample)
 
 	// library handler
 	mux.HandleFunc("POST /api/index", l.IndexFolder)
@@ -59,9 +59,12 @@ func RegisterRoutes(
 	mux.HandleFunc("DELETE /api/users/{username}/tracks/{trackId}", l.DeleteTrackFromLibrary)
 
 	// user handler
-	mux.HandleFunc("POST /api/users", u.RegisterUser)
-	mux.HandleFunc("POST /api/auth", u.AuthenticateUser)
-	mux.HandleFunc("DELETE /api/users", u.DeleteUser)
+	mux.HandleFunc("GET /", u.HandleIndex)
+
+	mux.HandleFunc("POST /register", u.RegisterUser)
+	mux.HandleFunc("POST /login", u.AuthenticateUser)
+	mux.HandleFunc("POST /logout", u.LogoutUser)
+	mux.HandleFunc("DELETE /delete", u.DeleteUser)
 	mux.HandleFunc("DELETE /api/users/{id}", u.UpdateUser)
 
 	// api := router.Group("/api")

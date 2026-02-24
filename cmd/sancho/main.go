@@ -73,24 +73,25 @@ func main() {
 
 	// Chage to std lib
 	mux := http.NewServeMux()
-	mux.Handle("GET /library", http.StripPrefix("/library", http.FileServer(http.Dir(config.LibraryPath))))
+	mux.Handle("GET /library/", http.StripPrefix("/library/", http.FileServer(http.Dir(config.LibraryPath))))
 
+	// Aquí registramos TODAS las rutas, incluyendo GET / que ahora maneja el UserHandler
 	api.RegisterRoutes(mux, proxyHandler, downloadHandler, libraryHandler, userHandler)
 	// ------------------------------------------
 
-	// ------------- FRONTEND -------------------
-	// Servir archivos específicos
+	// ------------- FRONTEND (ESTÁTICOS) -------------------
 	frontend := config.FrontendPath
-	// router.Static("/_app", "./build/_app")
-	mux.Handle("GET /_app", http.StripPrefix("/_app", http.FileServer(http.Dir(filepath.Join(frontend, "_app")))))
+
+	// SVELTE CLEANUP: En lugar de /_app, servimos una carpeta general de assets
+	// Asegúrate de crear una carpeta 'assets' dentro de tu FrontendPath para tu CSS de Tailwind y JS custom
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(filepath.Join(frontend, "assets")))))
+
 	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(frontend, "favicon.ico"))
 	})
-	// Ruta base para servir el HTML (Aquí luego inyectarás views.Index().Render(r.Context(), w))
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte("<h1>Placeholder Inicio (HTMX + Templ)</h1>"))
-	})
+
+	// ELIMINADO: El mux.HandleFunc("GET /", ...) con el placeholder ya no va aquí.
+	// Ahora vive en routes.go y lo maneja u.HandleIndex
 	// ------------------------------------------
 
 	handlerConCORS := middleware.CORSMiddleware(mux)
