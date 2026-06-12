@@ -1,5 +1,22 @@
 # Changelog
 
+## [v1.2.4] - 2026-06-12
+
+- Parameterized Qobuz configuration (secrets and app_id) via environment variables to avoid hardcoded credentials.
+- Fixed a bug in entrypoint.sh where QOBUZ_USER_ID was overriding the wrong configuration field.
+
+## [v1.2.3] - 2025-10-25
+
+- Fixed wrong calls to LinkTrackToUser function
+
+## [v1.2.2] - 2025-10-13
+
+- Fixed another error with the backend IP.
+
+## [v1.2.1] - 2025-10-13
+
+- Fixed error with the backend IP.
+
 ## [v1.2.0] - 2025-10-13
 
 - Updated UI with tabs.
@@ -9,15 +26,3 @@
 - Added button in config tab to generate the album cover for all the library.
 - Button for remove the song from the user's library.
 - Button to play the user's song from the browser.
-
-## [v1.2.1] - 2025-10-13
-
-- Fixed error with the backend IP.
-
-## [v1.2.2] - 2025-10-13
-
-- Fixed another error with the backend IP.
-
-## [v1.2.3] - 2025-10-25
-
-- Fixed wrong calls to LinkTrackToUser function

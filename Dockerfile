@@ -138,6 +138,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENV QOBUZ_PASSWORD_OR_TOKEN=""
 ENV QOBUZ_USER_ID=""
+ENV QOBUZ_APP_ID=""
+ENV QOBUZ_SECRETS=""
 
 EXPOSE 5400
 
